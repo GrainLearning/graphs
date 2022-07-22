@@ -8,9 +8,10 @@
 When importing the generated hdf5 file to python you will get a dictionary with the following keys:
 * `contact_params` : array of size 3 containing Young modulus $E$, poisson ratio $\nu$, and friction angle $\mu$ in degrees.
 * ints between 0 and 200: The key name is the index of the saved state. Each dictionary contains the following dictionaries with keys:
-1. `sources` : 
-2. `destinations` :
-3. `input_features` : 
+1. `sources` : list of size (number_edges,) with the indices of the source node of each edge.
+2. `destinations` : list of size (number_edges,) with the indices of the destination node of each edge.
+Look [here](https://distill.pub/2021/gnn-intro/) for more information about adjacency matrix. 
+4. `input_features` : Parameters controlling the triaxial experiment.
 
 Table 1. Input parameter:
 |index |Imput parameter|	
@@ -89,5 +90,3 @@ Table 3. Edge parameters:
 
 ## How to run it
 To run `GetNetworkData.py` you must have [yade](https://yade-dem.org/doc/installation.html) installed and then simply run `yade GetNetworkData.py`.
-
-
