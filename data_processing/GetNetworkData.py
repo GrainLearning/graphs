@@ -4,6 +4,7 @@ Data consists of:
 - contact_params (samples, 5)
 - input_params (samples, sequence_length, x)
 - output_params (samples, sequence_length, y)
+To run this file yade must be installed and then run: yade GetNetworkdata.py
 """
 import numpy as np
 import os, glob
