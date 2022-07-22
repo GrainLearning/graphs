@@ -28,6 +28,9 @@ output_keys_bodies = [
         ## particle info (in b.shape and b.state)
         'shape.radius',
         'state.mass',
+        'state.pos[0]',
+        'state.pos[1]',
+        'state.pos[2]',
         'state.vel[0]',
         'state.vel[1]',
         'state.vel[2]',
@@ -91,10 +94,13 @@ unused_keys_sequence = [
 unused_keys_constant = [
 ]
 
-SEQUENCE_LENGTH = 1
+
 TARGET_DIR = '/home/cheng/DataGen/'
 DATA_DIR = '/home/cheng/DataGen/'
-sampleID = 200
+
+# select a strain stepID or sample ID and leave the other '*'
+sampleID = '200'
+stepID = '*'
 
 def main(pressure, experiment_type,numParticles):
     data_dir = DATA_DIR + f'{pressure}/{experiment_type}/{numParticles}/'
@@ -102,9 +108,10 @@ def main(pressure, experiment_type,numParticles):
         print(f"Directory {data_dir} is empty.")
         return
 
-    simStateName = 'simState_' + experiment_type + f'_%i_{numParticles}'%(sampleID)
-    file_names = glob.glob(data_dir + '/' + simStateName + '_*.yade.gz')
-    h5file_name = data_dir + '/' + simStateName + '_graphs.hdf5'
+    simStateName = 'simState_' + experiment_type + f'_{sampleID}_{numParticles}'
+    file_names = glob.glob(data_dir + '/' + f'{simStateName}_{stepID}.yade.gz')
+    if '*' in simStateName: h5file_name = data_dir + '/' + 'simState_' + experiment_type + f'_all_{numParticles}' + '_graphs.hdf5'
+    else: h5file_name = data_dir + '/' + simStateName + '_graphs.hdf5'
     if os.path.exists(h5file_name):
         os.remove(h5file_name)
     f_perstep = h5py.File(h5file_name, 'a')
@@ -113,6 +120,7 @@ def main(pressure, experiment_type,numParticles):
         try:
             O.load(f); O.step()
             step = int(f.split('_')[-1].split('.yade.gz')[0])
+            sample = int(f.split('_')[2])
         except IOError:
             print('IOError', f, pressure)
             continue
@@ -143,17 +151,18 @@ def main(pressure, experiment_type,numParticles):
             inters_data.append([float(eval('i.'+interKey)) for i in O.interactions if i.isReal])
         inters_data = np.array(inters_data)
 
-		## add to DGL library format (from Aron)
+        ## add to DGL library format (from Aron)
         src = inters_data[0, :].astype(int)
         dst = inters_data[1, :].astype(int)
         e = inters_data[2:]
         e = np.transpose(e, (1, 0))
         n = np.transpose(bodies_data, (1, 0))
-
-        if step == 0:
+        
+        if (step == 0 and sampleID != '*') or (sample == 0 and stepID != '*'):
             f_perstep['contact_params'] = contact_tensor
 
-        f_step = f_perstep.require_group(f'{step}')
+        if stepID   == '*': f_step = f_perstep.require_group(f'{step}')
+        if sampleID == '*': f_step = f_perstep.require_group(f'{sample}')
         f_step['sources'] = src
         f_step['destinations'] = dst
         f_step['edge_features'] = e
@@ -163,6 +172,6 @@ def main(pressure, experiment_type,numParticles):
     print(f'Added data to {h5file_name}')
 
 for pressure in ['0.1e6']:
-	for experiment_type in ['drained']:
-		for numParticles in ['10000']:
-			main(pressure, experiment_type, numParticles)
+    for experiment_type in ['drained']:
+        for numParticles in ['15000']:
+            main(pressure, experiment_type, numParticles)
