@@ -8,9 +8,9 @@
 When importing the generated hdf5 file to python you will get a dictionary with the following keys:
 * `contact_params` : array of size 3 containing Young modulus $E$, poisson ratio $\nu$, and friction angle $\mu$ in degrees.
 * ints between 0 and 200: The key name is the index of the saved state. Each dictionary contains the following dictionaries with keys:
-	1. `sources` : 
-	2. `destinations` :
-	3. `input_features` : 
+1. `sources` : 
+2. `destinations` :
+3. `input_features` : 
 
 Table 1. Input parameter:
 |index |Imput parameter|	
