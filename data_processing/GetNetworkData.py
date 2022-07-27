@@ -38,19 +38,9 @@ output_keys_bodies = [
         'state.angVel[0]',
         'state.angVel[1]',
         'state.angVel[2]',
-        'state.angMom[0]', # redundant
-        'state.angMom[1]',
-        'state.angMom[2]',
-        'state.inertia[0]', # redundant
-        'state.inertia[1]',
-        'state.inertia[2]',
         'state.refPos[0]', # position at t=0, with respect to the origin
         'state.refPos[1]',
         'state.refPos[2]',
-        'state.refOri[0]', # orientation, redundant for spheres
-        'state.refOri[1]',
-        'state.refOri[2]',
-        'state.refOri[3]',
         ]
 output_keys_inters = [
         ## interaction connectivity info (in inter)
@@ -72,9 +62,6 @@ output_keys_inters = [
         'geom.contactPoint[1]',
         'geom.contactPoint[2]',
         ## interaction physics info (in inter.phys)
-        'phys.shearElastic[0]',  # elastic component of the shear (tangential) force x, redundant equal to shearForce
-        'phys.shearElastic[1]',  # elastic component of the shear (tangential) force y
-        'phys.shearElastic[2]',  # elastic component of the shear (tangential) force z
         'phys.usElastic[0]',  # elastic component of the shear displacement x
         'phys.usElastic[1]',  # elastic component of the shear displacement y
         'phys.usElastic[2]',  # elastic component of the shear displacement z
@@ -109,14 +96,23 @@ def main(pressure, experiment_type,numParticles):
         print(f"Directory {data_dir} is empty.")
         return
 
+    # get DEM state file names
     simStateName = 'simState_' + experiment_type + f'_{sampleID}_{numParticles}'
     file_names = glob.glob(data_dir + '/' + f'{simStateName}_{stepID}.yade.gz')
-    if '*' in simStateName: h5file_name = data_dir + '/' + 'simState_' + experiment_type + f'_all_{numParticles}' + '_graphs.hdf5'
+
+    # recover the correct ordering of the files
+    if stepID == '*':
+        steps = sorted([int(f.split('.yade.gz')[0].split('_')[-1]) for f in file_names])
+        file_names = [data_dir + '/' + f'{simStateName}_{stepID}.yade.gz' for stepID in steps]
+
+    # name the HDF5 file
+    if '*' in simStateName: h5file_name = data_dir + '/' + 'simState_' + experiment_type + f'_all_{stepID}_{numParticles}' + '_graphs.hdf5'
     else: h5file_name = data_dir + '/' + simStateName + '_graphs.hdf5'
     if os.path.exists(h5file_name):
         os.remove(h5file_name)
     f_perstep = h5py.File(h5file_name, 'a')
 
+    # load YADE and store data in f_perstep
     for f in file_names:
         try:
             O.load(f); O.step()
@@ -129,7 +125,9 @@ def main(pressure, experiment_type,numParticles):
         contact_tensor = np.array([
             O.materials[0].young,
             O.materials[0].poisson,
-            O.materials[0].frictionAngle
+            O.materials[0].frictionAngle,
+            sample,
+            step
             ])
         ### input data (void ratio e, mean pressure, number of particles)
         inputs_tensor = np.array([
@@ -159,11 +157,11 @@ def main(pressure, experiment_type,numParticles):
         e = np.transpose(e, (1, 0))
         n = np.transpose(bodies_data, (1, 0))
         
-        if (step == 0 and sampleID != '*') or (sample == 0 and stepID != '*'):
-            f_perstep['contact_params'] = contact_tensor
-
         if stepID   == '*': f_step = f_perstep.require_group(f'{step}')
         if sampleID == '*': f_step = f_perstep.require_group(f'{sample}')
+        if stepID == '*' and sampleID == '*': f_step = f_perstep.require_group(f'{sample_step}')
+
+        f_step['contact_params'] = contact_tensor
         f_step['sources'] = src
         f_step['destinations'] = dst
         f_step['edge_features'] = e
@@ -174,5 +172,5 @@ def main(pressure, experiment_type,numParticles):
 
 for pressure in ['0.1e6']:
     for experiment_type in ['drained']:
-        for numParticles in ['15000']:
+        for numParticles in ['10000','15000']:
             main(pressure, experiment_type, numParticles)
