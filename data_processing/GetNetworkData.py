@@ -53,17 +53,12 @@ output_keys_inters = [
         'id1',
         'id2',
         ## interaction geometry info (in inter.geom)
-        'geom.refR1', # radius particle 1, redundant because already in node
-        'geom.refR2', # as above
         'phys.ks',  # tangential stiffness
         'phys.kn',  # normal stiffness
         'geom.penetrationDepth', # overlap between spheres
         'geom.shearInc[0]',  # shear increment x between particles
         'geom.shearInc[1]',  # shear increment y between particles
         'geom.shearInc[2]',  # shear increment z between particles
-        'geom.normal[0]',  # contact normal x, can get rid of and just keep normal force
-        'geom.normal[1]',  # contact normal y
-        'geom.normal[2]',  # contact normal z
         'geom.contactPoint[0]', # x, y, z, in the cross section of the overlap
         'geom.contactPoint[1]',
         'geom.contactPoint[2]',
