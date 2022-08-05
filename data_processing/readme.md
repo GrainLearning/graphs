@@ -6,25 +6,30 @@
 ## Data stored
 
 When importing the generated hdf5 file to python you will get a dictionary with the following keys:
-* `contact_params` : array of size 5 containing Young modulus $E$, poisson ratio $\nu$, friction angle $\mu$ in degrees, sample ID (same as the seed), and loadstep ID
-* ints between 0 and 200: The key name is the index of the saved state. Each dictionary contains the following dictionaries with keys:
+* `contact_params` : array of size 5 containing Young modulus $E$, poisson ratio $\nu$, friction angle $\mu$ in degrees
+* ints between 1 and 200: The key name is the index of the sample ID. Within each sample ID group, you find the saved states 1 to 200. Each state contains the following dictionaries with keys:
 1. `sources` : list of size (number_edges,) with the indices of the source node of each edge.
 2. `destinations` : list of size (number_edges,) with the indices of the destination node of each edge.
-Look [here](https://distill.pub/2021/gnn-intro/) for more information about adjacency matrix. 
-4. `input_features` : Parameters controlling the triaxial experiment.
+3. `node_features`: array of particle properties and states at a given state
+4. `macro_input_features`: List of input macroscopic variables (e.g., stress or strains).
+5. `macro_output_features`: List of output macroscopic variables (e.g., strain or stress). Note that for the initial step, all macro-variables are input.
+6. `other_features`: list of numerical variables
 
-Table 1. Input parameter:
-|index |Imput parameter|	
+Look [here](https://distill.pub/2021/gnn-intro/) for more information about adjacency matrix. 
+
+Table 1.1. Macroscopic input parameter:
+|index |macro_input_featuresr|	
 |:----:|:-------|
-|[0]| initial void ratio $e$|
-|[1]| confining pressure $\sigma_3$|
-|[2]| strain in x direction $\varepsilon_x$ |
-|[3]| strain in y direction $\varepsilon_y$ |
-|[4]| strain in z direction $\varepsilon_z$ |
-|[5]| domain size in x direction $ l_x$     |
-|[6]| domain size in x direction $ l_y$     |
-|[7]| domain size in x direction $ l_z$     |
-|[8]| number of particles|
+|[0]| domain size in z direction $ l_z$ |
+|[1]| stress in x direction $\sigma_x$ |
+|[2]| stress in y direction $\sigma_y$ |
+
+Table 1.2. Macroscopic input parameter:
+|index |macro_input_featuresr|	
+|:----:|:-------|
+|[0]| domain size in x direction $ l_x$ |
+|[1]| domain size in y direction $ l_y$ |
+|[2]| stress in z direction $\sigma_z$ |
 
 4. `node_features` : Particle features
 
