@@ -36,7 +36,7 @@ def convert(old_path, new_path=None, include_edges=False):
             num_steps = num_steps - 1
         new_sample['num_steps'] = num_steps
 
-        new_sample['properties'] = np.stack([old_sample['metadata'][key][()] for key in property_list])
+        new_sample['properties'] = np.stack([old_sample['metadata'][key][()] for key in property_list]).astype(np.float32)
 
         macro_input_features = []
         macro_output_features = []
@@ -81,4 +81,4 @@ def check_steps_present(path):
 
 if __name__ == '__main__':
     original_path = '/Users/aronjansen/Documents/grainsData/raw/simState_path_sampling_5000_graphs.hdf5'
-    convert(original_path)
+    convert(original_path, include_edges=False)
