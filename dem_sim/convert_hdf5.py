@@ -36,7 +36,7 @@ def convert(old_path, new_path=None, include_edges=False):
             num_steps = num_steps - 1
         new_sample['num_steps'] = num_steps
 
-        new_sample['properties'] = np.stack([old_sample['metadata'][key][()] for key in property_list]).astype(np.float32)
+        new_sample['sample_properties'] = np.stack([old_sample['metadata'][key][()] for key in property_list]).astype(np.float32)
 
         macro_input_features = []
         macro_output_features = []
