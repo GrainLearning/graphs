@@ -15,6 +15,7 @@ class GNN_Layer(MessagePassing):
             spatial_dimension: int = 3,
             velocity_dimension: int = 6,
             property_dimension: int = 1,
+            normalize: bool = False,
         ):
         super().__init__(node_dim=-2, aggr='mean')
         self.in_features = in_features
@@ -39,9 +40,10 @@ class GNN_Layer(MessagePassing):
             nn.ReLU(),
         )
 
+        self.normalize = normalize
         self.norm = InstanceNorm(hidden_features)
 
-    def forward(self, h, v, pos, r, graph_features, edge_index, batch):
+    def forward(self, h, v, pos, r, graph_features, domain, edge_index, batch):
         """
         Propagate messages along edges, following Brandstetter.
         Args:
@@ -50,18 +52,21 @@ class GNN_Layer(MessagePassing):
             pos: Node positions, shape [N, 3].
             r: Node radii, shape [N, 1].
             graph_features: input graph-level features
+            domain: Domain size, shape [3].
             edge_index: edge index
             batch: tensor indicating which nodes belong to which graph
         """
         h = self.propagate(edge_index, h=h, v=v, pos=pos, r=r,
-                graph_features=graph_features)
-        h = self.norm(h, batch)
+                graph_features=graph_features, domain=domain)
+        if self.normalize:
+            h = self.norm(h, batch)
         return h
 
-    def message(self, h_i, h_j, v_i, v_j, pos_i, pos_j, r_i, r_j, graph_features):
+    def message(self, h_i, h_j, v_i, v_j, pos_i, pos_j, r_i, r_j, graph_features, domain):
         graph_features = graph_features.repeat(h_i.shape[0], 1)
+        pos_diff = periodic_difference(pos_i, pos_j, domain)
         message_input = torch.cat(
-                (h_i - h_j, v_i, v_j, r_i, r_j, pos_i - pos_j, graph_features),
+                (h_i - h_j, v_i, v_j, r_i, r_j, pos_diff, graph_features),
                 dim=1)
 
         message = self.message_net(message_input)
@@ -73,9 +78,23 @@ class GNN_Layer(MessagePassing):
         update_input = torch.cat((h, message, graph_features), dim=1)
         update = self.update_net(update_input)
         if self.in_features == self.out_features:
-            return h + update
-        else:
-            return update
+            update = update + h
+
+        return update
+
+
+def periodic_difference(x_i, x_j, domain):
+    """
+    Compute x_i - x_j taking into account the periodic boundary conditions.
+    """
+    diff = x_i - x_j
+    smaller_one = x_i < x_j  # component-wise check which is bigger
+    domain_shift = (1 - 2 * smaller_one) * domain
+    diff_shifted = diff - domain_shift
+    # boolean indicating in which component to use the original difference
+    use_original = torch.abs(diff) < torch.abs(diff_shifted)
+    periodic_diff = use_original * diff + ~use_original * diff_shifted
+    return periodic_diff
 
 
 class Simulator(nn.Module):
@@ -88,9 +107,9 @@ class Simulator(nn.Module):
         self.num_hidden_layers = num_hidden_layers
         self.hidden_features = hidden_features
         self.output_features = 3 + 6  # position, velocities
-        self.output_macro_features = 4  # really?
-        self.graph_features = 2 * 5  # domain and time, this and next step
-        self.input_features = self.graph_features + 1 + 6  # radius, velocity, NOTE: removed position here
+        self.output_macro_features = 3
+        self.graph_features = 2 * 4 + 4  # domain and time, this and next step, plus 4 global constant properties
+        self.input_features = self.graph_features + 1 + 6  # radius, velocity
 
         self.embedding_mlp = nn.Sequential(
             nn.Linear(self.input_features, self.hidden_features),
@@ -105,6 +124,7 @@ class Simulator(nn.Module):
                 hidden_features=self.hidden_features,
                 out_features=self.hidden_features,
                 graph_features=self.graph_features,
+                normalize=True,
                 )
             for _ in range(self.num_hidden_layers))
             )
@@ -124,12 +144,12 @@ class Simulator(nn.Module):
 
     def forward(self, graph) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         v, pos, r = graph.v, graph.pos, graph.r
+        domain = graph.domain
         edge_index = graph.edge_index
         batch = graph.batch
 
         # use the current domain size and timestep and the increment as globals
-        # TODO: add other input graph level features from metadata
-        graph_features = torch.cat((graph.domain, graph.t))  # TODO: maybe only take first of graph.t
+        graph_features = torch.cat((graph.domain, graph.t, graph.x_global))
         graph_features_next = torch.cat((graph.domain_next, graph.t_next))
         graph_features = torch.cat((graph_features, graph_features_next))
 
@@ -145,10 +165,11 @@ class Simulator(nn.Module):
             graph.v,
             graph_features.repeat(node_features.shape[0], 1),
             ), dim=1)
+
         h = self.embedding_mlp(features_without_position)
 
-        for gnn_layer in self.gnn_layers:
-            h = gnn_layer(h, v, pos, r, graph_features, edge_index, batch)
+        for i, gnn_layer in enumerate(self.gnn_layers):
+            h = gnn_layer(h, v, pos, r, graph_features, domain, edge_index, batch)
 
         prediction = self.output_mlp(h) + node_features
 
@@ -156,10 +177,27 @@ class Simulator(nn.Module):
         pred_v = prediction[:, 3:]
 
         h_mean = global_mean_pool(h, batch)
-        pred_macro = self.macro_mlp(h_mean)[0]  # get rid of empty node dimension
+        pred_macro = self.macro_mlp(h_mean)[0]  # gets rid of empty node dimension
 
         return pred_x, pred_v, pred_macro
 
-    def rollout(self, g_0, sequence):
-        pass
+    def rollout(self, g_0, domain_sequence, t_sequence):
+        g = g_0
+        T = t_sequence.shape[0]
+        preds_x, preds_v, preds_macro = [], [], []
+
+        for t in range(T - 1):  # TODO: think about range ends
+            print(t)
+            pred_x, pred_v, pred_macro = self(g)
+            preds_x.append(pred_x.detach())
+            preds_v.append(pred_v.detach())
+            preds_macro.append(pred_macro.detach())
+
+            g.evolve(pred_x, pred_v, t_sequence[t + 1], domain_sequence[t + 1])
+
+        preds_x = torch.stack(preds_x)
+        preds_v = torch.stack(preds_v)
+        preds_macro = torch.stack(preds_macro)
+
+        return preds_x, preds_v, preds_macro
 
