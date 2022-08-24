@@ -53,7 +53,8 @@ def convert(old_path, new_path=None, include_edges=False):
             node_features.append(old_step['node_features'][()])
             time.append(old_step['time'][()])
 
-        new_sample['macro_output_features'] = np.stack(macro_output_features)
+        macro_output_features = np.stack(macro_output_features)
+        new_sample['macro_output_features'] = macro_output_features / 1e6
         new_sample['time'] = np.stack(time)
 
         domains = np.stack(macro_input_features)
