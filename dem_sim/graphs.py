@@ -51,7 +51,7 @@ class SampleDataset(Dataset):
                 'time',
                 'macro_input_features',
                 'macro_output_features',
-                'properties',
+                'sample_properties',
                 ]
 
         self.radius = 2 * (self.file['metadata/mean_radius'][()] + \
