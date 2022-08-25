@@ -22,7 +22,12 @@ def convert(old_path, new_path=None, include_edges=False):
 
     new_file.require_group('metadata')
     for key in old_file['metadata'].keys():
-        new_file['metadata'][key] = old_file['metadata'][key][()]
+        if key != 'mean_radius' and key != 'dispersion_radius':
+            new_file['metadata'][key] = old_file['metadata'][key][()]
+    radius_min = old_file['metadata/mean_radius'][()] - 0.5 * old_file['metadata/dispersion_radius'][()]
+    radius_max = old_file['metadata/mean_radius'][()] + 0.5 * old_file['metadata/dispersion_radius'][()]
+    new_file['metadata/radius_min'] = radius_min
+    new_file['metadata/radius_max'] = radius_max
 
     samples = [key for key in old_file.keys() if key != 'metadata']
     for sample_key in samples:
@@ -38,8 +43,8 @@ def convert(old_path, new_path=None, include_edges=False):
 
         new_sample['sample_properties'] = np.stack([old_sample['metadata'][key][()] for key in property_list]).astype(np.float32)
 
-        macro_input_features = []
-        macro_output_features = []
+        domains = []
+        stresses = []
         node_features = []
         time = []
         for t in range(num_steps):
@@ -48,23 +53,23 @@ def convert(old_path, new_path=None, include_edges=False):
                 new_sample[f'edges/{t}/sources'] = old_step['sources'][()]
                 new_sample[f'edges/{t}/destinations'] = old_step['destinations'][()]
 
-            macro_input_features.append(old_step['macro_input_features'][()])
-            macro_output_features.append(old_step['macro_output_features'][()])
+            domains.append(old_step['macro_input_features'][()])
+            stresses.append(old_step['macro_output_features'][()])
             node_features.append(old_step['node_features'][()])
-            time.append(old_step['time'][()])
+            time.append(old_step['time'][:1])  # only take the time interval, not the step count
 
-        macro_output_features = np.stack(macro_output_features)
-        new_sample['macro_output_features'] = macro_output_features / 1e6
+        stresses = np.stack(stresses)
+        new_sample['stress'] = stresses / 1e6
         new_sample['time'] = np.stack(time)
 
-        domains = np.stack(macro_input_features)
+        domains = np.stack(domains)
         node_features = np.stack(node_features)
         positions = node_features[:, :, :3]
         velocities = node_features[:, :, 3:]
         positions = np.remainder(positions, np.expand_dims(domains, axis=1))
         node_features = np.concatenate([positions, velocities], axis=-1)
 
-        new_sample['macro_input_features'] = domains
+        new_sample['domain'] = domains
         new_sample['node_features'] = node_features
 
 
