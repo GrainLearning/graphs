@@ -11,17 +11,20 @@ import torch_geometric as tg
 from torch.utils.data import Dataset
 from torch_cluster import radius_graph
 
+from dem_sim.data_types import GraphData
+
 
 class StepDataset(tg.data.Dataset):
     """
-    Step level dataset, returns graphs.
+    Step level dataset. Samples all steps of all samples exactly once.
+
+    Returns the step number and all the sample data.
     """
     def __init__(self, sample_dataset, loop: bool = False):
         super().__init__()
         self.sample_dataset = sample_dataset
         self.num_steps = np.sum(sample_dataset.step_counts)
         self.cumulative_steps = np.cumsum(sample_dataset.step_counts)
-        self.graph_generator = GraphGenerator(sample_dataset.radius, loop)
 
     def len(self):
         return self.num_steps
@@ -33,8 +36,7 @@ class StepDataset(tg.data.Dataset):
         else:
             step = idx
 
-        return DEMGraph(self.sample_dataset.radius, step, *self.sample_dataset[sample_idx])
-    # return self.graph_generator.build_graph(step, *self.sample_dataset[sample_idx])
+        return step, self.sample_dataset[sample_idx]
 
 
 class SampleDataset(Dataset):
@@ -46,16 +48,14 @@ class SampleDataset(Dataset):
 
         self.file = h5py.File(path, 'r')
         self.output_tensor_keys = [
-                'node_features',
-                'radius',
-                'time',
-                'macro_input_features',
-                'macro_output_features',
-                'sample_properties',
+                "sample_properties",
+                "node_features",
+                "radius",
+                "time",
+                "domain",
+                "stress",
                 ]
-
-        self.radius = 2 * (self.file['metadata/mean_radius'][()] + \
-                1/2 * self.file['metadata/dispersion_radius'][()])
+        self.max_particle_radius = self.file['metadata/radius_max']
         self.sample_keys = [key for key in self.file.keys() if key[0].isnumeric()]
         # only count steps with a label (so with a next step)
         self.step_counts = [int(self.file[sample_key]['num_steps'][()]) - 1
@@ -64,20 +64,14 @@ class SampleDataset(Dataset):
     def __len__(self):
         return len(self.sample_keys)
 
-    def __getitem__(self, idx: int) -> Tuple[
-            torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> GraphData:
         """
         Get full time series of sample.
 
         Args:
             idx (int): sample index.
         Returns:
-            torch.Tensor: Node features (dynamical), shape [T, N, 9].
-            torch.Tensor: Node properties (static, just the radius), shape [N, 1].
-            torch.Tensor: Time deltas (dynamical), shape [T, 1].
-            torch.Tensor: Domains (dynamical), shape [T, 3].
-            torch.Tensor: Macroscopic features (dynamical), shape [T, 3].
-            torch.Tensor: Sample properties (static), shape [4].
+            GraphData
         """
         sample = self.file[self.sample_keys[idx]]
         outputs = {key: get_tensor(sample[key]) for key in self.output_tensor_keys}
