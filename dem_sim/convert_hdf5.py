@@ -4,6 +4,12 @@
 # 3. Change the precision of radius to normal, and take out of metadata
 # 4. Put the metadata together into 'properties', apart from num_steps which is separate.
 # 5. Make sure the positions are between 0 and the domain size.
+# 6. Convert 'metadata' at sample level also to 32 bit floats
+# 7. Divide macro_output_features by 1e6 to make them order 1
+# 8. Rename macro_input/output_features to 'domain' and 'stress' respectively
+# 9. Replace 'mean_radius' and 'dispersion_radius' with 'radius_min' and 'radius_max' computed from those
+# 10. In 'time', remove the step count, just keeping the time interval
+# 11. Split 'node_features' into 'positions' and 'velocities'
 
 import h5py
 import numpy as np
@@ -70,7 +76,8 @@ def convert(old_path, new_path=None, include_edges=False):
         node_features = np.concatenate([positions, velocities], axis=-1)
 
         new_sample['domain'] = domains
-        new_sample['node_features'] = node_features
+        new_sample['positions'] = positions
+        new_sample['velocities'] = velocities
 
 
 def check_steps_present(path):
@@ -84,6 +91,7 @@ def check_steps_present(path):
                 old_step = old_sample[f'time_sequence/{t}']
             except:
                 print(f"For sample {sample_key}, with {num_steps} steps, actually step {t} doesn't exist?")
+
 
 if __name__ == '__main__':
     original_path = '/Users/aronjansen/Documents/grainsData/raw/simState_path_sampling_5000_graphs.hdf5'
