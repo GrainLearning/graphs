@@ -1,6 +1,5 @@
 import torch
 from dem_sim.data_types import GraphData, Prediction, PredictionSequence
-import torch_geometric as tg
 
 
 class Simulator(torch.nn.Module):

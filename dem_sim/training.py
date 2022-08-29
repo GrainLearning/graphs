@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.nn import MSELoss
-import torch_geometric as tg
 
 from dem_sim.utils import periodic_difference
 from dem_sim.data_types import Prediction, GraphData

@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 import torch
-import torch_geometric as tg
 from torch.utils.data import Dataset
 from dem_sim.data_types import GraphData
 
