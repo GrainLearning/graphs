@@ -1,3 +1,4 @@
+from typing import List
 import torch
 
 def periodic_difference(x_i: torch.Tensor, x_j: torch.Tensor, domain: torch.Tensor) -> torch.Tensor:
