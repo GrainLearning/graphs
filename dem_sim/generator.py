@@ -1,7 +1,7 @@
 import torch
 import torch_geometric as tg
 from torch_cluster import radius_graph
-from dem_sim.data_types import GraphData, Prediction
+from dem_sim.data_types import GraphData, Prediction, Graph
 
 
 class GraphGenerator():
@@ -17,7 +17,7 @@ class GraphGenerator():
     def build_graph(self,
             graph_data: GraphData,
             step: int = 0,
-            ) -> tg.data.Data:
+            ) -> Graph:
         """
         Create a single graph using time sequence data.
 
@@ -25,14 +25,14 @@ class GraphGenerator():
             graph_data (GraphData): All tensor data of a given sample.
             step (int): which timestep to take.
         Returns:
-            tg.data.Data
+            Graph
         """
         edge_index = self._compute_edges(
                 graph_data.positions[step],
                 graph_data.domain[step]
                 )
 
-        return tg.data.Data(
+        return self._build_graph(
             pos=graph_data.positions[step],
             r=graph_data.radius,
             v=graph_data.velocities[step],
@@ -45,25 +45,25 @@ class GraphGenerator():
         )
 
     def evolve(self,
-            current_graph: tg.data.Data,
+            current_graph: Graph,
             prediction: Prediction,
             t_next: torch.Tensor,
             domain_next: torch.Tensor
-            ) -> tg.data.Data:
+            ) -> Graph:
         """
         Evolve graph to the next timestep using prediction and new inputs.
 
         Args:
-            current_graph (tg.Data.Data):
+            current_graph (Graph):
             prediction (Prediction):
             t_next (torch.Tensor):
             domain_next (torch.Tensor):
 
         Returns:
-            tg.data.Data
+            Graph
         """
         edge_index = self._compute_edges(prediction.positions, domain_next)
-        new_graph = tg.data.Data(
+        new_graph = self._build_graph(
             pos=prediction.positions,
             r=current_graph.r,
             v=prediction.velocities,
@@ -102,3 +102,8 @@ class GraphGenerator():
 
         return edge_index
 
+    def _build_graph(self, **args):
+        """
+        Wrapper around pytorch geometric's data.Data, to isolate dependence on it.
+        """
+        return tg.data.Data(**args)

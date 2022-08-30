@@ -1,6 +1,7 @@
 from typing import List
 from collections import namedtuple
 import torch
+from torch_geometric.data import Data
 
 
 GraphDataBase = namedtuple(
@@ -76,3 +77,9 @@ class PredictionSequence():
         repr_str = repr_str[:-2] + ")"
         return repr_str
 
+
+class Graph(Data):
+    """
+    Wrapper around torch_geometric.data.Data.
+    """
+    pass
