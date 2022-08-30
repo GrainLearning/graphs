@@ -90,3 +90,16 @@ class GNNModel(nn.Module):
 
         return Prediction(positions=pred_x, velocities=pred_v, stress=pred_macro)
 
+
+class NaiveForecasting(nn.Module):
+    """
+    Baseline prediction, predicting that the next step is the same as the current.
+    (Don't predict the stress.)
+    """
+    def forward(self, graph: Graph) -> Prediction:
+        return Prediction(
+                positions=graph.pos,
+                velocities=graph.v,
+                stress=torch.zeros(3),
+                )
+
