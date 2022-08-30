@@ -82,4 +82,16 @@ class Graph(Data):
     """
     Wrapper around torch_geometric.data.Data.
     """
-    pass
+    def __init__(self, pos, r, v, t, domain, t_next, domain_next, x_global, edge_index):
+        super().__init__(
+                pos=pos,
+                r=r,
+                v=v,
+                t=t,
+                domain=domain,
+                t_next=t_next,
+                domain_next=domain_next,
+                x_global=x_global,
+                edge_index=edge_index,
+                )
+

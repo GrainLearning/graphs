@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from dem_sim.layers import GNN_Layer, GlobalMeanPool
-from dem_sim.data_types import Prediction
+from dem_sim.data_types import Prediction, Graph
 
 
 class GNNModel(nn.Module):
@@ -51,7 +51,7 @@ class GNNModel(nn.Module):
             nn.Linear(self.hidden_features, self.output_macro_features),
         )
 
-    def forward(self, graph) -> Prediction:
+    def forward(self, graph: Graph) -> Prediction:
         v, pos, r = graph.v, graph.pos, graph.r
         domain = graph.domain
         edge_index = graph.edge_index

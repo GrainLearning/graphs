@@ -14,10 +14,7 @@ class GraphGenerator():
         self.cutoff_distance = cutoff_distance
         self.loop = loop
 
-    def build_graph(self,
-            graph_data: GraphData,
-            step: int = 0,
-            ) -> Graph:
+    def build_graph(self, graph_data: GraphData, step: int = 0) -> Graph:
         """
         Create a single graph using time sequence data.
 
@@ -32,7 +29,7 @@ class GraphGenerator():
                 graph_data.domain[step]
                 )
 
-        return self._build_graph(
+        return Graph(
             pos=graph_data.positions[step],
             r=graph_data.radius,
             v=graph_data.velocities[step],
@@ -63,13 +60,14 @@ class GraphGenerator():
             Graph
         """
         edge_index = self._compute_edges(prediction.positions, domain_next)
-        new_graph = self._build_graph(
+        # todo: change to in-place when memory leak solved
+        new_graph = Graph(
             pos=prediction.positions,
             r=current_graph.r,
             v=prediction.velocities,
             t=current_graph.t_next,
-            t_next=t_next,
             domain=current_graph.domain_next,
+            t_next=t_next,
             domain_next=domain_next,
             x_global=current_graph.x_global,
             edge_index=edge_index,
@@ -101,9 +99,3 @@ class GraphGenerator():
             edge_index = torch.unique(torch.concat((edge_index, edge_index_shifted), dim=1), dim=1)
 
         return edge_index
-
-    def _build_graph(self, **args):
-        """
-        Wrapper around pytorch geometric's data.Data, to isolate dependence on it.
-        """
-        return tg.data.Data(**args)
