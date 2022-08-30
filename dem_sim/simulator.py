@@ -8,7 +8,7 @@ class Simulator(torch.nn.Module):
         self.model = model
         self.graph_generator = graph_generator
 
-    def forward(self, step: int, graph_data: GraphData) -> Prediction:
+    def forward(self, graph_data: GraphData, step: int) -> Prediction:
         graph = self.graph_generator.build_graph(graph_data, step)
         return self.model(graph)
 

@@ -27,7 +27,7 @@ class StepDataset(Dataset):
         else:
             step = idx
 
-        return step, self.sample_dataset[sample_idx]
+        return self.sample_dataset[sample_idx], step
 
 
 class SampleDataset(Dataset):

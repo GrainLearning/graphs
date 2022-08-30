@@ -21,9 +21,9 @@ def train(
     losses = []
 
     for epoch in range(epochs):
-        for i, (step, graph_data) in enumerate(loader):
-            step, graph_data = _unbatch(step, graph_data)
-            prediction = simulator(step, graph_data)
+        for i, (graph_data, step) in enumerate(loader):
+            graph_data, step = _unbatch(graph_data, step)
+            prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
             loss.backward()
             print(f'Loss {loss}, step {i}...')
@@ -35,7 +35,7 @@ def train(
     return losses
 
 
-def _unbatch(step, graph_data):
+def _unbatch(graph_data, step):
     """
     Temporary code to remove the batch dimension added by the dataloader.
     To be replaced with actual handling of batches.
@@ -43,8 +43,7 @@ def _unbatch(step, graph_data):
     if type(step) != int:
         step = step[0]
         graph_data = GraphData(**{key: getattr(graph_data, key)[0] for key in GraphData._fields})
-    return step, graph_data
-
+    return graph_data, step
 
 class DEMLoss(nn.Module):
     def __init__(self, a: float = 1., b: float = 1., c: float = 1.):
