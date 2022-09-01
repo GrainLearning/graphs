@@ -21,18 +21,41 @@ def train(
     losses = []
 
     for epoch in range(epochs):
+        total_loss = 0
         for i, (graph_data, step) in enumerate(loader):
             graph_data, step = _unbatch(graph_data, step)
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
             loss.backward()
-            print(f'Loss {loss}, step {i}...')
-            print('pred_macro', prediction.stress.detach())
-            print('y', graph_data.stress[step].detach())
-            losses.append(loss.detach())
+            #print(f'Loss {loss}, step {i}...')
+            #print('pred_macro', prediction.stress.item())
+            #print('y', graph_data.stress[step].item())
+            total_loss += loss.item()
             optimizer.step()
+        total_loss = total_loss / i
+        losses.append(total_loss)
+        print(f"Loss after epoch {epoch}: {total_loss}...")
 
     return losses
+
+
+def test(
+        simulator,
+        loader,
+        loss_function,
+        device,
+    ):
+    simulator.eval()
+    simulator.to(device)
+
+    total_loss = 0
+    for i, (graph_data, step) in enumerate(loader):
+        graph_data, step = _unbatch(graph_data, step)
+        prediction = simulator(graph_data, step)
+        loss = loss_function(prediction, graph_data, step)
+        total_loss += loss.item()
+    total_loss = total_loss / i
+    print(f"Mean training loss: {total_loss}")
 
 
 def _unbatch(graph_data, step):
@@ -89,8 +112,8 @@ class MSELossPeriodic(MSELoss):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, domain: torch.Tensor):
-        error = periodic_difference(input, target, domain)
+    def forward(self, inputs: torch.Tensor, target: torch.Tensor, domain: torch.Tensor):
+        error = periodic_difference(inputs, target, domain)
         se = error ** 2
         mse = torch.mean(se)
         return mse
