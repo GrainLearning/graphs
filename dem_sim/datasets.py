@@ -11,7 +11,7 @@ class StepDataset(Dataset):
 
     Returns the step number and all the sample data.
     """
-    def __init__(self, sample_dataset, loop: bool = False):
+    def __init__(self, sample_dataset):
         super().__init__()
         self.sample_dataset = sample_dataset
         self.num_steps = np.sum(sample_dataset.step_counts)
@@ -34,15 +34,19 @@ class SampleDataset(Dataset):
     """
     Sample level dataset.
     """
-    def __init__(self, path):
+    def __init__(self, path, num_samples=None, max_steps=None):
         super().__init__()
         self.file = h5py.File(path, 'r')
 
         self.max_particle_radius = self.file['metadata/radius_max'][()]
         self.sample_keys = [key for key in self.file.keys() if key[0].isnumeric()]
+        if num_samples:
+            self.sample_keys = self.sample_keys[:num_samples]
         # only count steps with a label (so with a next step)
         self.step_counts = [int(self.file[sample_key]['num_steps'][()]) - 1
                                 for sample_key in self.sample_keys]
+        if max_steps:
+            self.step_counts = [min(max_steps, count) for count in self.step_counts]
 
     def __len__(self):
         return len(self.sample_keys)
