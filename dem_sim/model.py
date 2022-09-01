@@ -1,3 +1,5 @@
+from typing import Callable
+
 import torch
 from torch import nn
 
@@ -10,6 +12,7 @@ class GNNModel(nn.Module):
         self,
         num_hidden_layers: int = 6,
         hidden_features: int = 128,
+        activation: Callable = nn.ReLU,
     ):
         super().__init__()
         self.num_hidden_layers = num_hidden_layers
@@ -21,9 +24,9 @@ class GNNModel(nn.Module):
 
         self.embedding_mlp = nn.Sequential(
             nn.Linear(self.input_features, self.hidden_features),
-            nn.ReLU(),
+            activation(),
             nn.Linear(self.hidden_features, self.hidden_features),
-            nn.ReLU(),
+            activation(),
         )
 
         self.gnn_layers = nn.ModuleList(modules=(
@@ -33,6 +36,7 @@ class GNNModel(nn.Module):
                 out_features=self.hidden_features,
                 graph_features=self.graph_features,
                 normalize=True,
+                activation=activation,
                 )
             for _ in range(self.num_hidden_layers))
             )
@@ -40,14 +44,14 @@ class GNNModel(nn.Module):
 
         self.output_mlp = nn.Sequential(
             nn.Linear(self.hidden_features, self.hidden_features),
-            nn.ReLU(),
+            activation(),
             nn.Linear(self.hidden_features, self.output_features),
         )
 
         self.pool = GlobalMeanPool()
         self.macro_mlp = nn.Sequential(
             nn.Linear(self.hidden_features, self.hidden_features),
-            nn.ReLU(),
+            activation(),
             nn.Linear(self.hidden_features, self.output_macro_features),
         )
 
@@ -77,7 +81,7 @@ class GNNModel(nn.Module):
 
         h = self.embedding_mlp(features_without_position)
 
-        for i, gnn_layer in enumerate(self.gnn_layers):
+        for gnn_layer in self.gnn_layers:
             h = gnn_layer(h, v, pos, r, graph_features, domain, edge_index, batch)
 
         prediction = self.output_mlp(h) + node_features

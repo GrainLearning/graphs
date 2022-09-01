@@ -1,3 +1,5 @@
+from typing import Callable
+
 import torch
 from torch import nn
 from torch_geometric.nn import InstanceNorm, MessagePassing, global_mean_pool
@@ -15,28 +17,28 @@ class GNN_Layer(MessagePassing):
             velocity_dimension: int = 6,
             property_dimension: int = 1,
             normalize: bool = False,
+            activation: Callable = nn.ReLU,
         ):
         super().__init__(node_dim=-2, aggr='mean')
         self.in_features = in_features
         self.out_features = out_features
         self.hidden_features = hidden_features
 
-        # 7 is original node features (without position)
         message_inputs = in_features + graph_features + spatial_dimension + \
                             2 * (velocity_dimension + property_dimension)
         self.message_net = nn.Sequential(
             nn.Linear(message_inputs, hidden_features),
-            nn.ReLU(),
+            activation(),
             nn.Linear(hidden_features, hidden_features),
-            nn.ReLU(),
+            activation(),
         )
 
         update_inputs = in_features + hidden_features + graph_features
         self.update_net = nn.Sequential(
             nn.Linear(update_inputs, hidden_features),
-            nn.ReLU(),
+            activation(),
             nn.Linear(hidden_features, out_features),
-            nn.ReLU(),
+            activation(),
         )
 
         self.normalize = normalize
@@ -81,9 +83,6 @@ class GNN_Layer(MessagePassing):
 
         return update
 
-def normal_difference(x, y, z):
-    return x - y
-
 
 class GlobalMeanPool(nn.Module):
     """
@@ -91,3 +90,15 @@ class GlobalMeanPool(nn.Module):
     """
     def forward(self, x, batch=None, size=None):
         return global_mean_pool(x, batch, size)
+
+
+class Swish(nn.Module):
+    """
+    Swish activation function
+    """
+    def __init__(self, beta=1):
+        super().__init__()
+        self.beta = beta
+
+    def forward(self, x):
+        return x * torch.sigmoid(self.beta * x)
