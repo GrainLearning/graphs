@@ -13,6 +13,9 @@ class GNNModel(nn.Module):
         num_hidden_layers: int = 6,
         hidden_features: int = 128,
         activation: Callable = nn.ReLU,
+        scale_position: float = 1e-3,
+        scale_velocity: float = 1e-3,
+        scale_angular_velocity: float = 1e-2,
     ):
         super().__init__()
         self.num_hidden_layers = num_hidden_layers
@@ -21,6 +24,9 @@ class GNNModel(nn.Module):
         self.output_macro_features = 3
         self.graph_features = 2 * 4 + 4  # domain and time, this and next step, plus 4 global constant properties
         self.input_features = self.graph_features + 1 + 6  # radius, velocity
+        self.scale_position = scale_position,
+        self.scale_velocity = scale_velocity,
+        self.scale_angular_velocity = scale_angular_velocity,
 
         self.embedding_mlp = nn.Sequential(
             nn.Linear(self.input_features, self.hidden_features),
@@ -84,7 +90,14 @@ class GNNModel(nn.Module):
         for gnn_layer in self.gnn_layers:
             h = gnn_layer(h, v, pos, r, graph_features, domain, edge_index, batch)
 
-        prediction = self.output_mlp(h) + node_features
+        model_output = self.output_mlp(h)
+        model_output = torch.cat((
+            torch.Tensor([self.scale_position]) * model_output[:, :3],
+            torch.Tensor([self.scale_velocity]) * model_output[:, 3:6],
+            torch.Tensor([self.scale_angular_velocity]) * model_output[:, 6:],
+            ), dim=1)
+
+        prediction =  model_output + node_features
 
         pred_x = torch.remainder(prediction[:, :3], graph.domain_next)
         pred_v = prediction[:, 3:]
