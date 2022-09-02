@@ -32,7 +32,7 @@ def train(
             #print('y', graph_data.stress[step].item())
             total_loss += loss.item()
             optimizer.step()
-        total_loss = total_loss / i
+        total_loss = total_loss / (i + 1)
         losses.append(total_loss)
         print(f"Loss after epoch {epoch}: {total_loss}...")
 
@@ -54,7 +54,7 @@ def test(
         prediction = simulator(graph_data, step)
         loss = loss_function(prediction, graph_data, step)
         total_loss += loss.item()
-    total_loss = total_loss / i
+    total_loss = total_loss / (i + 1)
     print(f"Mean training loss: {total_loss}")
 
 
