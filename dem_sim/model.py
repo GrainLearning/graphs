@@ -61,7 +61,7 @@ class GNNModel(nn.Module):
             nn.Linear(self.hidden_features, self.output_macro_features),
         )
 
-    def forward(self, graph: Graph) -> Prediction:
+    def forward(self, graph: Graph, detach: bool = False) -> Prediction:
         v, pos, r = graph.v, graph.pos, graph.r
         domain = graph.domain
         edge_index = graph.edge_index
@@ -105,7 +105,10 @@ class GNNModel(nn.Module):
         h_mean = self.pool(h, batch)
         pred_macro = self.macro_mlp(h_mean)[0]  # gets rid of empty node dimension
 
-        return Prediction(positions=pred_x, velocities=pred_v, stress=pred_macro)
+        prediction = Prediction(positions=pred_x, velocities=pred_v, stress=pred_macro)
+        if detach:
+            prediction = Prediction(*(el.detach() for el in prediction))
+        return prediction
 
 
 class NaiveForecasting(nn.Module):

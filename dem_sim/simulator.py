@@ -17,15 +17,14 @@ class Simulator(torch.nn.Module):
             domain_sequence: torch.Tensor,
             time_sequence: torch.Tensor,
             ) -> Prediction:
-        graph = self.graph_generator.build_graph(initial_data)
+        graph = self.graph_generator.build_graph(initial_data, 0)
 
         T = time_sequence.shape[0]
         predictions = []
 
-        for t in range(T - 1):  # TODO: think about range ends
+        for t in range(T - 1):
             print(t)
-            prediction = self.model(graph)
-            predictions.append(prediction)
+            prediction = self.model(graph, detach=True)
             graph = self.graph_generator.evolve(graph, prediction, time_sequence[t + 1], domain_sequence[t + 1])
 
         return PredictionSequence(predictions)
