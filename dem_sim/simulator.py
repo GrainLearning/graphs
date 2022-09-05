@@ -25,6 +25,7 @@ class Simulator(torch.nn.Module):
         for t in range(T - 1):
             print(t)
             prediction = self.model(graph, detach=True)
+            predictions.append(prediction)
             graph = self.graph_generator.evolve(graph, prediction, time_sequence[t + 1], domain_sequence[t + 1])
 
         return PredictionSequence(predictions)
