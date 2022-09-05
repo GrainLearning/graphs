@@ -24,7 +24,7 @@ class GNN_Layer(MessagePassing):
         self.out_features = out_features
         self.hidden_features = hidden_features
 
-        message_inputs = in_features + graph_features + spatial_dimension + \
+        message_inputs = 2 * in_features + graph_features + spatial_dimension + \
                             2 * (velocity_dimension + property_dimension)
         self.message_net = nn.Sequential(
             nn.Linear(message_inputs, hidden_features),
@@ -67,7 +67,7 @@ class GNN_Layer(MessagePassing):
         graph_features = graph_features.repeat(h_i.shape[0], 1)
         pos_diff = periodic_difference(pos_i, pos_j, domain)
         message_input = torch.cat(
-                (h_i - h_j, v_i, v_j, r_i, r_j, pos_diff, graph_features),
+                (h_i, h_j, v_i, v_j, r_i, r_j, pos_diff, graph_features),
                 dim=1)
 
         message = self.message_net(message_input)
