@@ -44,12 +44,13 @@ class GNN_Layer(MessagePassing):
         self.normalize = normalize
         self.norm = InstanceNorm(hidden_features)
 
-    def forward(self, h, v, pos, r, graph_features, domain, edge_index, batch):
+    def forward(self, h, v, w, pos, r, graph_features, domain, edge_index, batch):
         """
         Propagate messages along edges, following Brandstetter.
         Args:
             h: Hidden features, shape [N, hidden_features].
-            v: Node velocities, shape [N, 6].
+            v: Node velocities, shape [N, 3].
+            w: Node angular velocities, shape [N, 3].
             pos: Node positions, shape [N, 3].
             r: Node radii, shape [N, 1].
             graph_features: input graph-level features
@@ -57,17 +58,17 @@ class GNN_Layer(MessagePassing):
             edge_index: edge index
             batch: tensor indicating which nodes belong to which graph
         """
-        h = self.propagate(edge_index, h=h, v=v, pos=pos, r=r,
+        h = self.propagate(edge_index, h=h, v=v, w=w, pos=pos, r=r,
                 graph_features=graph_features, domain=domain)
         if self.normalize:
             h = self.norm(h, batch)
         return h
 
-    def message(self, h_i, h_j, v_i, v_j, pos_i, pos_j, r_i, r_j, graph_features, domain):
+    def message(self, h_i, h_j, v_i, v_j, w_i, w_j, pos_i, pos_j, r_i, r_j, graph_features, domain):
         graph_features = graph_features.repeat(h_i.shape[0], 1)
         pos_diff = periodic_difference(pos_i, pos_j, domain)
         message_input = torch.cat(
-                (h_i, h_j, v_i, v_j, r_i, r_j, pos_diff, graph_features),
+                (h_i, h_j, v_i, v_j, w_i, w_j, r_i, r_j, pos_diff, graph_features),
                 dim=1)
 
         message = self.message_net(message_input)

@@ -62,7 +62,8 @@ class GNNModel(nn.Module):
         )
 
     def forward(self, graph: Graph, detach: bool = False) -> Prediction:
-        v, pos, r = graph.v, graph.pos, graph.r
+        v, w, pos, r = graph.v, graph.w, graph.pos, graph.r
+        N = r.shape[0]
         domain = graph.domain
         edge_index = graph.edge_index
         batch = graph.batch
@@ -72,40 +73,38 @@ class GNNModel(nn.Module):
         graph_features_next = torch.cat((graph.domain_next, graph.t_next))
         graph_features = torch.cat((graph_features, graph_features_next))
 
-        node_features = torch.cat((graph.pos, graph.v), dim=1)
-        all_features = torch.cat((
-            graph.r,
-            node_features,
-            graph_features.repeat(node_features.shape[0], 1)
-            ), dim=1)
-
-        features_without_position = torch.cat((
-            graph.r,
-            graph.v,
-            graph_features.repeat(node_features.shape[0], 1),
-            ), dim=1)
+        dynamic_features = torch.cat((pos, v, w), dim=1)
+        features_without_position = torch.cat(
+                (r, v, w, graph_features.repeat(N, 1),),
+                dim=1)
 
         h = self.embedding_mlp(features_without_position)
 
         for gnn_layer in self.gnn_layers:
-            h = gnn_layer(h, v, pos, r, graph_features, domain, edge_index, batch)
+            h = gnn_layer(h, v, w, pos, r, graph_features, domain, edge_index, batch)
 
         model_output = self.output_mlp(h)
         model_output = torch.cat((
             torch.Tensor([self.scale_position]) * model_output[:, :3],
-            torch.Tensor([self.scale_velocity]) * model_output[:, 3:6],
-            torch.Tensor([self.scale_angular_velocity]) * model_output[:, 6:],
+            torch.Tensor([self.scale_velocity]) * model_output[:, 3:-3],
+            torch.Tensor([self.scale_angular_velocity]) * model_output[:, -3:],
             ), dim=1)
 
-        prediction =  model_output + node_features
+        prediction =  model_output + dynamic_features
 
         pred_x = torch.remainder(prediction[:, :3], graph.domain_next)
-        pred_v = prediction[:, 3:]
+        pred_v = prediction[:, 3:-3]
+        pred_w = prediction[:, -3:]
 
         h_mean = self.pool(h, batch)
         pred_macro = self.macro_mlp(h_mean)[0]  # gets rid of empty node dimension
 
-        prediction = Prediction(positions=pred_x, velocities=pred_v, stress=pred_macro)
+        prediction = Prediction(
+                positions=pred_x,
+                velocities=pred_v,
+                angular_velocities=pred_w,
+                stress=pred_macro,
+                )
         if detach:
             prediction = Prediction(*(el.detach() for el in prediction))
         return prediction
@@ -120,6 +119,7 @@ class NaiveForecasting(nn.Module):
         return Prediction(
                 positions=graph.pos,
                 velocities=graph.v,
+                angular_velocities=graph.w,
                 stress=torch.zeros(3),
                 )
 

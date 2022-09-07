@@ -110,8 +110,8 @@ class DEMLoss(nn.Module):
             float loss
         """
         loss_x = self.loss_fn_x(prediction.positions, graph_data.positions[step + 1], graph_data.domain[step + 1])
-        loss_v = self.loss_fn_v(prediction.velocities[:3], graph_data.velocities[step + 1, :3])
-        loss_w = self.loss_fn_w(prediction.velocities[3:], graph_data.velocities[step + 1, 3:])
+        loss_v = self.loss_fn_v(prediction.velocities, graph_data.velocities[step + 1])
+        loss_w = self.loss_fn_w(prediction.angular_velocities, graph_data.angular_velocities[step + 1])
         # Note we're predicting the stress at the current step, not the next one
         loss_stress = self.loss_fn_stress(prediction.stress, graph_data.stress[step])
         return 3 * (self.a * loss_x + self.b * loss_v + self.c * loss_w + self.d * loss_stress)
@@ -149,8 +149,8 @@ class VectorMetrics(nn.Module):
 
     def add(self, prediction: Prediction, graph_data: GraphData, step: int):
         self.positions += self._compute_mean_norm(prediction.positions, graph_data.positions[step + 1])
-        self.velocities += self._compute_mean_norm(prediction.velocities[:3], graph_data.velocities[step + 1, :3])
-        self.angular_velocities += self._compute_mean_norm(prediction.velocities[3:], graph_data.velocities[step + 1, 3:])
+        self.velocities += self._compute_mean_norm(prediction.velocities, graph_data.velocities[step + 1])
+        self.angular_velocities += self._compute_mean_norm(prediction.angular_velocities, graph_data.angular_velocities[step + 1])
         self.stress += self._compute_mean_norm(prediction.stress, graph_data.stress[step])
         self.count += 1
 

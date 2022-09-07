@@ -106,7 +106,8 @@ class GraphGenerator(nn.Module):
             graph_properties ([F'''] tensor): constant graph-level features.
         """
         positions = node_features[step, :, :3]
-        velocities = node_features[step, :, 3:]
+        velocities = node_features[step, :, 3:-3]
+        angular_velocities = node_features[step, :, -3:]
         next_node_features = node_features[step + 1]
         t, t_next = time[step], time[step + 1]
         domain, domain_next = domains[step], domains[step + 1]
@@ -119,6 +120,7 @@ class GraphGenerator(nn.Module):
             pos=positions,
             r=node_properties,
             v=velocities,
+            w=angular_velocities,
             y=next_node_features,
             t=t,
             t_next=t_next,

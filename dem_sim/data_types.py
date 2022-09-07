@@ -6,13 +6,13 @@ from torch_geometric.data import Data
 
 GraphDataBase = namedtuple(
         "GraphData",
-        ["sample_properties", "positions", "velocities", "radius", "time", "domain", "stress"],
+        ["sample_properties", "positions", "velocities", "angular_velocities", "radius", "time", "domain", "stress"],
         defaults=[None],
         )
 
 PredictionBase = namedtuple(
         "Prediction",
-        ["positions", "velocities", "stress"],
+        ["positions", "velocities", "angular_velocities", "stress"],
         )
 
 
@@ -22,7 +22,9 @@ class GraphData(GraphDataBase):
 
     Attributes:
         sample_properties ([4] tensor): constant graph-level features.
-        node_features ([T, N, 9] tensor): dynamical node features: position, velocity, angular velocity.
+        positions ([N, 3] tensor)
+        velocities ([N, 3] tensor)
+        angular_velocities ([N, 3] tensor)
         radius ([N, 1] tensor): constant node features: particle radii.
         time ([T, 1] tensor): time deltas.
         domain ([T, 3] tensor): dynamical domain size.
@@ -44,8 +46,9 @@ class Prediction(PredictionBase):
 
     Attributes:
         positions ([N, 3] tensor)
-        velocities ([N, 6] tensor): linear and angular velocity.
-        stress ([N, 3] tensor): 3 component stress.
+        velocities ([N, 3] tensor)
+        angular_velocities ([N, 3] tensor)
+        stress ([3] tensor)
     """
     __slots__ = ()
     def __repr__(self):
@@ -62,12 +65,14 @@ class PredictionSequence():
 
     Attributes:
         positions ([T, N, 3] tensor)
-        velocities ([T, N, 6] tensor)
+        velocities ([T, N, 3] tensor)
+        angular_velocities ([T, N, 3] tensor)
         stress ([T, 3] tensor)
     """
     def __init__(self, prediction_list: List) -> None:
         self.positions = torch.stack(tuple(prediction.positions for prediction in prediction_list))
         self.velocities = torch.stack(tuple(prediction.velocities for prediction in prediction_list))
+        self.angular_velocities = torch.stack(tuple(prediction.angular_velocities for prediction in prediction_list))
         self.stress = torch.stack(tuple(prediction.stress for prediction in prediction_list))
 
     def __repr__(self):
@@ -82,11 +87,12 @@ class Graph(Data):
     """
     Wrapper around torch_geometric.data.Data.
     """
-    def __init__(self, pos, r, v, t, domain, t_next, domain_next, x_global, edge_index):
+    def __init__(self, pos, r, v, w, t, domain, t_next, domain_next, x_global, edge_index):
         super().__init__(
                 pos=pos,
                 r=r,
                 v=v,
+                w=w,
                 t=t,
                 domain=domain,
                 t_next=t_next,

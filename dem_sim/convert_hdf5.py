@@ -71,13 +71,14 @@ def convert(old_path, new_path=None, include_edges=False):
         domains = np.stack(domains)
         node_features = np.stack(node_features)
         positions = node_features[:, :, :3]
-        velocities = node_features[:, :, 3:]
+        velocities = node_features[:, :, 3:-3]
+        angular_velocities = node_features[:, :, -3:]
         positions = np.remainder(positions, np.expand_dims(domains, axis=1))
-        node_features = np.concatenate([positions, velocities], axis=-1)
 
         new_sample['domain'] = domains
         new_sample['positions'] = positions
         new_sample['velocities'] = velocities
+        new_sample['angular_velocities'] = angular_velocities
 
 
 def check_steps_present(path):
