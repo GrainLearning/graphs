@@ -18,23 +18,24 @@ def train(
     simulator.train()
     simulator.to(device)
 
+    metric = VectorMetrics()
     losses = []
 
     for epoch in range(epochs):
+        metric.reset()
         total_loss = 0
         for i, (graph_data, step) in enumerate(loader):
             graph_data, step = _unbatch(graph_data, step)
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
+            metric.add(prediction, graph_data, step)
             loss.backward()
-            #print(f'Loss {loss}, step {i}...')
-            #print('pred_macro', prediction.stress.item())
-            #print('y', graph_data.stress[step].item())
             total_loss += loss.item()
             optimizer.step()
         total_loss = total_loss / (i + 1)
         losses.append(total_loss)
-        print(f"Loss after epoch {epoch}: {total_loss}...")
+        print(f"Loss after epoch {epoch}: {total_loss:.4E}...")
+        print(metric)
 
     return losses
 
@@ -47,15 +48,18 @@ def test(
     ):
     simulator.eval()
     simulator.to(device)
+    metric = VectorMetrics()
 
     total_loss = 0
     for i, (graph_data, step) in enumerate(loader):
         graph_data, step = _unbatch(graph_data, step)
         prediction = simulator(graph_data, step)
         loss = loss_function(prediction, graph_data, step)
+        metric.add(prediction, graph_data, step)
         total_loss += loss.item()
     total_loss = total_loss / (i + 1)
-    print(f"Mean training loss: {total_loss}")
+    print(f"Mean training loss: {total_loss:.4E}")
+    print(metric)
 
 
 def _unbatch(graph_data, step):
@@ -68,23 +72,30 @@ def _unbatch(graph_data, step):
         graph_data = GraphData(**{key: getattr(graph_data, key)[0] for key in GraphData._fields})
     return graph_data, step
 
+
 class DEMLoss(nn.Module):
-    def __init__(self, a: float = 1., b: float = 1., c: float = 1.):
+    """
+    Weighted sum of vector norm squared differences of positions, velocities, angular velocities and stress.
+    """
+    def __init__(self, a: float = 1., b: float = 1., c: float = 1., d: float = 1.):
         """
         Initialize a loss function.
 
         Args:
             a (float): multiplier of position loss.
             b (float): multiplier of velocity loss.
-            c (float): multiplier of macroscopic loss.
+            c (float): multiplier of angular velocity loss.
+            d (float): multiplier of stress loss.
         """
         super().__init__()
         self.a = a
         self.b = b
         self.c = c
+        self.d = d
         self.loss_fn_x = MSELossPeriodic()
         self.loss_fn_v = MSELoss()
-        self.loss_fn_macro = MSELoss()
+        self.loss_fn_w = MSELoss()
+        self.loss_fn_stress = MSELoss()
 
     def forward(self, prediction: Prediction, graph_data: GraphData, step: int):
         """
@@ -99,10 +110,11 @@ class DEMLoss(nn.Module):
             float loss
         """
         loss_x = self.loss_fn_x(prediction.positions, graph_data.positions[step + 1], graph_data.domain[step + 1])
-        loss_v = self.loss_fn_v(prediction.velocities, graph_data.velocities[step + 1])
+        loss_v = self.loss_fn_v(prediction.velocities[:3], graph_data.velocities[step + 1, :3])
+        loss_w = self.loss_fn_w(prediction.velocities[3:], graph_data.velocities[step + 1, 3:])
         # Note we're predicting the stress at the current step, not the next one
-        loss_macro = self.loss_fn_macro(prediction.stress, graph_data.stress[step])
-        return self.a * loss_x + self.b * loss_v + self.c * loss_macro
+        loss_stress = self.loss_fn_stress(prediction.stress, graph_data.stress[step])
+        return 3 * (self.a * loss_x + self.b * loss_v + self.c * loss_w + self.d * loss_stress)
 
 
 class MSELossPeriodic(MSELoss):
@@ -117,4 +129,45 @@ class MSELossPeriodic(MSELoss):
         se = error ** 2
         mse = torch.mean(se)
         return mse
+
+
+class VectorMetrics(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.count = 0
+        self.positions = 0
+        self.velocities = 0
+        self.angular_velocities = 0
+        self.stress = 0
+
+    def reset(self):
+        self.count = 0
+        self.positions = 0
+        self.velocities = 0
+        self.angular_velocities = 0
+        self.stress = 0
+
+    def add(self, prediction: Prediction, graph_data: GraphData, step: int):
+        self.positions += self._compute_mean_norm(prediction.positions, graph_data.positions[step + 1])
+        self.velocities += self._compute_mean_norm(prediction.velocities[:3], graph_data.velocities[step + 1, :3])
+        self.angular_velocities += self._compute_mean_norm(prediction.velocities[3:], graph_data.velocities[step + 1, 3:])
+        self.stress += self._compute_mean_norm(prediction.stress, graph_data.stress[step])
+        self.count += 1
+
+    def __str__(self):
+        output = "Mean vector norm differences: "
+        for attribute in ['positions', 'velocities', 'angular_velocities', 'stress']:
+            tabs = "".join(["\t" for _ in range((40 - len(attribute)) // 8)])
+            mean = getattr(self, attribute) / self.count
+            output += f"\n{attribute}:" + tabs + f"{mean:.4E}"
+        return output
+
+    @staticmethod
+    def _compute_mean_norm(a, b):
+        """
+        Given two tensors a and b which contain (3 dimensional) vectors, the last dimension being the vector dimension,
+        compute the norm of the difference vectors, and take the mean over the other dimensions.
+        """
+        diff_norms = ((a - b)**2).sum(dim=-1).sqrt().detach()
+        return diff_norms.mean()
 
