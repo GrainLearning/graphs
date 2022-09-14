@@ -5,6 +5,7 @@ from torch.nn import MSELoss
 from dem_sim.utils import periodic_difference
 from dem_sim.data_types import Prediction, GraphData
 
+import wandb
 
 def train(
         simulator,
@@ -32,10 +33,18 @@ def train(
             loss.backward()
             total_loss += loss.item()
             optimizer.step()
+            wandb.log({"loss": loss})
         total_loss = total_loss / (i + 1)
         losses.append(total_loss)
+
         print(f"Loss after epoch {epoch}: {total_loss:.4E}...")
         print(metric)
+
+        wandb.log({"loss_epoch": total_loss})
+        wandb.log({"rmse_positions": metric.positions})
+        wandb.log({"rmse_velocities": metric.velocities})
+        wandb.log({"rmse_angular_velocities": metric.angular_velocities})
+        wandb.log({"rmse_stress": metric.stress})
 
     return losses
 

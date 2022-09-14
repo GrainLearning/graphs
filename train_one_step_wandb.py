@@ -17,16 +17,16 @@ import wandb
 if __name__ == '__main__':
 	#----------- wandb configuration ----------------
 	config = dict (
-	  learning_rate = 0.01,
 	  batch_size = 1,
 	  cutoff_distance_prefactor = 2.,
 	  architecture = "CNN",
-	  dataset_id = "peds-0192",
+	  dataset_id = "path_sampling_5000",
 	  infrastructure = "Snellius",
 	  device = "cuda"
 	)
 
 	wandb.init(project="GrainLearning_GNN_1",
+		entity="grainlearning-escience",
 		notes="tweak baseline",
 		tags=["baseline", "paper1"],
 	  	config=config)
