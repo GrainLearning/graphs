@@ -36,16 +36,17 @@ if __name__ == '__main__':
 	filename = 'simState_path_sampling_5000_graphs_reformatted.hdf5'
 	sample_dataset = SampleDataset(data_dir + filename)
 	step_dataset = StepDataset(sample_dataset)
+	device = torch.device(config['device'])
 
 	generator = GraphGenerator(cutoff_distance=config['cutoff_distance_prefactor'] * sample_dataset.max_particle_radius)
-	model = GNNModel()
+	model = GNNModel(device=device)
 	wandb.watch(model) #This enables log pytorch gradients
-	simulator = Simulator(model=model, graph_generator=generator)
+	model.to(device)
+	simulator = Simulator(model=model, graph_generator=generator, device=device)
 
 	optimizer = Adam(simulator.parameters())
 	loader = DataLoader(step_dataset, batch_size=config['batch_size'], shuffle=True)
 	loss_function = DEMLoss()
-	device = torch.device(config['device'])
 
 	losses = train(simulator, optimizer, loader, loss_function, device)
 	wandb.log({"losses": losses})

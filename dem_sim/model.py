@@ -10,6 +10,7 @@ from dem_sim.data_types import Prediction, Graph
 class GNNModel(nn.Module):
     def __init__(
         self,
+        device,
         num_hidden_layers: int = 6,
         hidden_features: int = 128,
         activation: Callable = nn.ReLU,
@@ -61,6 +62,7 @@ class GNNModel(nn.Module):
             nn.Linear(self.hidden_features, self.output_macro_features),
         )
 
+        self.device = device
     def forward(self, graph: Graph, detach: bool = False) -> Prediction:
         v, w, pos, r = graph.v, graph.w, graph.pos, graph.r
         N = r.shape[0]
@@ -85,9 +87,9 @@ class GNNModel(nn.Module):
 
         model_output = self.output_mlp(h)
         model_output = torch.cat((
-            torch.Tensor([self.scale_position]) * model_output[:, :3],
-            torch.Tensor([self.scale_velocity]) * model_output[:, 3:-3],
-            torch.Tensor([self.scale_angular_velocity]) * model_output[:, -3:],
+            torch.tensor([self.scale_position],device=self.device) * model_output[:, :3],
+            torch.tensor([self.scale_velocity],device=self.device) * model_output[:, 3:-3],
+            torch.tensor([self.scale_angular_velocity],device=self.device) * model_output[:, -3:],
             ), dim=1)
 
         prediction =  model_output + dynamic_features

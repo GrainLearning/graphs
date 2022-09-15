@@ -27,6 +27,12 @@ def train(
         total_loss = 0
         for i, (graph_data, step) in enumerate(loader):
             graph_data, step = _unbatch(graph_data, step)
+            #moving graph_data to gpu
+            graph_data = graph_data._replace(positions = graph_data.positions.to(device),
+                                             velocities = graph_data.velocities.to(device),
+                                             angular_velocities = graph_data.angular_velocities.to(device),
+                                             stress = graph_data.stress.to(device) )
+
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
             metric.add(prediction, graph_data, step)
@@ -122,7 +128,7 @@ class DEMLoss(nn.Module):
         loss_v = self.loss_fn_v(prediction.velocities, graph_data.velocities[step + 1])
         loss_w = self.loss_fn_w(prediction.angular_velocities, graph_data.angular_velocities[step + 1])
         # Note we're predicting the stress at the current step, not the next one
-        loss_stress = self.loss_fn_stress(prediction.stress, graph_data.stress[step])
+        loss_stress = self.loss_fn_stress(prediction.stress.to(self.device), graph_data.stress[step])
         return 3 * (self.a * loss_x + self.b * loss_v + self.c * loss_w + self.d * loss_stress)
 
 
