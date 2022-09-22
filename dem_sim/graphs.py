@@ -86,12 +86,12 @@ class GraphGenerator(nn.Module):
         super().__init__()
 
     def build_graph(self, step: int,
-                node_features: torch.Tensor,
-                node_properties: torch.Tensor,
-                time: torch.Tensor,
-                domains: torch.Tensor,
-                graph_outputs: torch.Tensor,
-                graph_properties: torch.Tensor,
+                node_features: torch.tensor,
+                node_properties: torch.tensor,
+                time: torch.tensor,
+                domains: torch.tensor,
+                graph_outputs: torch.tensor,
+                graph_properties: torch.tensor,
             ):
         """
         Create a single graph using time sequence data.
@@ -131,7 +131,7 @@ class GraphGenerator(nn.Module):
             edge_index=edge_index,
         )
 
-    def _compute_edges(self, positions: torch.Tensor, domain: torch.Tensor) -> torch.Tensor:
+    def _compute_edges(self, positions: torch.tensor, domain: torch.tensor) -> torch.tensor:
         """
         Compute the radius graph, taking into account periodic boundary conditions.
 
@@ -139,11 +139,11 @@ class GraphGenerator(nn.Module):
         to the positions shifted and transformed back onto the domain.
 
         Args:
-            positions (torch.Tensor, shape [N, 3]): all node positions.
-            domain (torch.Tensor, shape [3]): The domain size.
+            positions (torch.tensor, shape [N, 3]): all node positions.
+            domain (torch.tensor, shape [3]): The domain size.
 
         Returns:
-            torch.Tensor, shape [2, E], edge list.
+            torch.tensor, shape [2, E], edge list.
         """
         edge_index = radius_graph(positions, self.radius, loop=self.loop)
 
@@ -164,10 +164,10 @@ class GraphGenerator(nn.Module):
 
         Args:
             graph (torch_geometric.data.Data): the initial graph.
-            pred_x (torch.Tensor): predictions of new positions.
-            pred_v (torch.Tensor): predictions of new velocities.
-            t_next (torch.Tensor): new time difference.
-            domain_next (torch.Tensor): new domain size.
+            pred_x (torch.tensor): predictions of new positions.
+            pred_v (torch.tensor): predictions of new velocities.
+            t_next (torch.tensor): new time difference.
+            domain_next (torch.tensor): new domain size.
         """
         # NOTE: this is meant for time evolution, and so does not update
         # node or graph features, as these are not used in the evolution.
@@ -198,12 +198,12 @@ class DEMGraph(tg.data.Data):
         edge_index: The edges as found by.
     """
     def __init__(self, radius: float, step: int,
-        node_features: torch.Tensor,
-        node_properties: torch.Tensor,
-        time: torch.Tensor,
-        domains: torch.Tensor,
-        graph_outputs: torch.Tensor,
-        graph_properties: torch.Tensor,
+        node_features: torch.tensor,
+        node_properties: torch.tensor,
+        time: torch.tensor,
+        domains: torch.tensor,
+        graph_outputs: torch.tensor,
+        graph_properties: torch.tensor,
         loop: bool = False,
         ):
         """
@@ -250,10 +250,10 @@ class DEMGraph(tg.data.Data):
         Using GNN predictions and new system inputs, evolve the graph.
 
         Args:
-            pred_x (torch.Tensor): predictions of new positions.
-            pred_v (torch.Tensor): predictions of new velocities.
-            t_next (torch.Tensor): new time difference.
-            domain_next (torch.Tensor): new domain size.
+            pred_x (torch.tensor): predictions of new positions.
+            pred_v (torch.tensor): predictions of new velocities.
+            t_next (torch.tensor): new time difference.
+            domain_next (torch.tensor): new domain size.
         """
         # NOTE: this is meant for time evolution, and so does not update
         # node or graph features, as these are not used in the evolution.
@@ -285,18 +285,18 @@ class DEMGraph(tg.data.Data):
         return edge_index
 
 
-def get_tensor(data) -> torch.Tensor:
+def get_tensor(data) -> torch.tensor:
     """Convert data inside an hdf5 file to a torch tensor."""
     return torch.tensor(data[()])
 
 
-def find_missing(A: torch.Tensor, B: torch.Tensor) -> List[tuple]:
+def find_missing(A: torch.tensor, B: torch.tensor) -> List[tuple]:
     """
     Return edges from edge list A that are missing in edge list B.
 
     Args:
-        A (torch.Tensor): edge list, shape [2, E].
-        B (torch.Tensor): edge list, shape [2, E'].
+        A (torch.tensor): edge list, shape [2, E].
+        B (torch.tensor): edge list, shape [2, E'].
 
     Returns:
         list of tuples

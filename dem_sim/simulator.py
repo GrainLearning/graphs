@@ -17,8 +17,8 @@ class Simulator(torch.nn.Module):
 
     def rollout(self,
             initial_data: GraphData,
-            domain_sequence: torch.Tensor,
-            time_sequence: torch.Tensor,
+            domain_sequence: torch.tensor,
+            time_sequence: torch.tensor,
             ) -> Prediction:
         graph = self.graph_generator.build_graph(initial_data, 0)
 
