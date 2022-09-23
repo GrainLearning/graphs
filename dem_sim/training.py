@@ -43,11 +43,8 @@ def train(
         print(f"Loss after epoch {epoch}: {total_loss:.4E}...")
         print(metric)
 
+        wandb.log(metric.dict)
         wandb.log({"loss_epoch": total_loss})
-        wandb.log({"rmse_positions": metric.positions})
-        wandb.log({"rmse_velocities": metric.velocities})
-        wandb.log({"rmse_angular_velocities": metric.angular_velocities})
-        wandb.log({"rmse_stress": metric.stress})
 
     return losses
 
@@ -183,3 +180,15 @@ class VectorMetrics(nn.Module):
         diff_norms = ((a - b)**2).sum(dim=-1).sqrt().detach()
         return diff_norms.mean()
 
+    @property
+    def dict(self):
+        """
+        Returns the rms: root mean squared error of each of the attributes.
+        """
+        rms = dict()
+        for attribute in ['positions', 'velocities', 'angular_velocities', 'stress']:
+            mean = 0
+            if self.count>0 :
+                mean = getattr(self, attribute) / self.count
+            rms['rms_'+attribute] = mean
+        return rms
