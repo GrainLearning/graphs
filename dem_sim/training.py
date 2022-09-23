@@ -27,12 +27,7 @@ def train(
         total_loss = 0
         for i, (graph_data, step) in enumerate(loader):
             graph_data, step = _unbatch(graph_data, step)
-            #moving graph_data to gpu
-            graph_data = graph_data._replace(positions = graph_data.positions.to(device),
-                                             velocities = graph_data.velocities.to(device),
-                                             angular_velocities = graph_data.angular_velocities.to(device),
-                                             stress = graph_data.stress.to(device),
-                                             domain = graph_data.domain.to(device))
+            graph_data = graph_data.copy_to(device)
 
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
@@ -41,6 +36,7 @@ def train(
             total_loss += loss.item()
             optimizer.step()
             wandb.log({"loss": loss})
+            
         total_loss = total_loss / (i + 1)
         losses.append(total_loss)
 

@@ -3,16 +3,13 @@ from dem_sim.data_types import GraphData, Prediction, PredictionSequence
 
 
 class Simulator(torch.nn.Module):
-    def __init__(self, model, graph_generator, device) -> None:
+    def __init__(self, model, graph_generator) -> None:
         super().__init__()
         self.model = model
         self.graph_generator = graph_generator
-        self.device = device
-        self.model.to(self.device)
 
     def forward(self, graph_data: GraphData, step: int) -> Prediction:
         graph = self.graph_generator.build_graph(graph_data, step)
-        graph.to(self.device)
         return self.model(graph)
 
     def rollout(self,

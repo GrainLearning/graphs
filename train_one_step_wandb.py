@@ -21,8 +21,8 @@ if __name__ == '__main__':
       cutoff_distance_prefactor = 2.,
       architecture = "CNN",
       dataset_id = "path_sampling_5000",
-      infrastructure = "MacOS Luisa",
-      device = "cpu"
+      infrastructure = "crib utwente",
+      device = "cuda"
     )
 
     wandb.init(project="GrainLearning_GNN_1",
@@ -50,11 +50,22 @@ if __name__ == '__main__':
     model = GNNModel(device=device)
     wandb.watch(model) #This enables log pytorch gradients
     model.to(device)
-    simulator = Simulator(model=model, graph_generator=generator, device=device)
+    simulator = Simulator(model=model, graph_generator=generator)
+    simulator.to(device)
 
     optimizer = Adam(simulator.parameters())
     loader = DataLoader(step_dataset, batch_size=config['batch_size'], shuffle=True)
     loss_function = DEMLoss()
 
+    #---------- Training
     losses = train(simulator, optimizer, loader, loss_function, device)
-    wandb.log({"losses": losses})
+    #wandb.log({"losses": losses})
+    
+    #---------- Rollout
+    """
+    gd_sample = sample_dataset[10].copy_to(device)
+    domain_sequence = gd_sample.domain
+    time_sequence = gd_sample.time
+    max_steps = 10
+    predictions = simulator.rollout(gd_sample, domain_sequence[:max_steps], time_sequence[:max_steps])
+    """
