@@ -38,6 +38,19 @@ class GraphData(GraphDataBase):
             repr_str += f"{field}=tensor({getattr(self, field).shape}), "
         repr_str = repr_str[:-2] + ")"
         return repr_str
+    
+    def copy_to(self, device: torch.device):
+        """
+        Copy the necessary data to a device.
+        This is particulary important when running with gpus.
+        
+        Args:
+            device (torch.device): device where to copy
+
+        Returns:
+            GraphData with its attributes in the specified device
+        """
+        return GraphData(**{f: getattr(self, f).to(device) for f in self._fields})
 
 
 class Prediction(PredictionBase):

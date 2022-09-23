@@ -5,6 +5,7 @@ from torch.nn import MSELoss
 from dem_sim.utils import periodic_difference
 from dem_sim.data_types import Prediction, GraphData
 
+import wandb
 
 def train(
         simulator,
@@ -26,16 +27,24 @@ def train(
         total_loss = 0
         for i, (graph_data, step) in enumerate(loader):
             graph_data, step = _unbatch(graph_data, step)
+            graph_data = graph_data.copy_to(device)
+
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
             metric.add(prediction, graph_data, step)
             loss.backward()
             total_loss += loss.item()
             optimizer.step()
+            wandb.log({"loss": loss})
+            
         total_loss = total_loss / (i + 1)
         losses.append(total_loss)
+
         print(f"Loss after epoch {epoch}: {total_loss:.4E}...")
         print(metric)
+
+        wandb.log(metric.dict)
+        wandb.log({"loss_epoch": total_loss})
 
     return losses
 
@@ -171,3 +180,15 @@ class VectorMetrics(nn.Module):
         diff_norms = ((a - b)**2).sum(dim=-1).sqrt().detach()
         return diff_norms.mean()
 
+    @property
+    def dict(self):
+        """
+        Returns the rms: root mean squared error of each of the attributes.
+        """
+        rms = dict()
+        for attribute in ['positions', 'velocities', 'angular_velocities', 'stress']:
+            mean = 0
+            if self.count>0 :
+                mean = getattr(self, attribute) / self.count
+            rms['rms_'+attribute] = mean
+        return rms
