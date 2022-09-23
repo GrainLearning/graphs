@@ -15,38 +15,46 @@ from dem_sim.training import train, DEMLoss
 import wandb
 
 if __name__ == '__main__':
-	#----------- wandb configuration ----------------
-	config = dict (
-	  batch_size = 1,
-	  cutoff_distance_prefactor = 2.,
-	  architecture = "CNN",
-	  dataset_id = "path_sampling_5000",
-	  infrastructure = "Snellius",
-	  device = "cuda"
-	)
+    #----------- wandb configuration ----------------
+    config = dict (
+      batch_size = 1,
+      cutoff_distance_prefactor = 2.,
+      architecture = "CNN",
+      dataset_id = "path_sampling_5000",
+      infrastructure = "MacOS Luisa",
+      device = "cpu"
+    )
 
-	wandb.init(project="GrainLearning_GNN_1",
-		entity="grainlearning-escience",
-		notes="tweak baseline",
-		tags=["baseline", "paper1"],
-	  	config=config)
+    wandb.init(project="GrainLearning_GNN_1",
+        entity="grainlearning-escience",
+        notes="tweak baseline",
+        tags=["baseline", "paper1"],
+        config=config)
 
-	#---------- Simulator configuration
-	data_dir = '/projects/0/einf3381/GrainLearning/TrainingData/PathSampling/'
-	filename = 'simState_path_sampling_5000_graphs_reformatted.hdf5'
-	sample_dataset = SampleDataset(data_dir + filename)
-	step_dataset = StepDataset(sample_dataset)
-	device = torch.device(config['device'])
+    #---------- Simulator configuration
+    if config['infrastructure'] == "Snellius":
+        data_dir = '/projects/0/einf3381/GrainLearning/TrainingData/PathSampling/'
+    elif config['infrastructure'] == "crib utwente":
+        data_dir = '/data/private/'
+    elif config['infrastructure'] == "MacOS Luisa":
+        data_dir = '/Users/luisaorozco/Documents/Projects/GrainLearning/data/gnn_data/'
+    elif config['infrastructure'] == "MacOS Aron":
+        data_dir = '/Users/aronjansen/Documents/grainsData/raw/'
 
-	generator = GraphGenerator(cutoff_distance=config['cutoff_distance_prefactor'] * sample_dataset.max_particle_radius)
-	model = GNNModel(device=device)
-	wandb.watch(model) #This enables log pytorch gradients
-	model.to(device)
-	simulator = Simulator(model=model, graph_generator=generator, device=device)
+    filename = 'simState_path_sampling_5000_graphs_reformatted.hdf5'
+    sample_dataset = SampleDataset(data_dir + filename)
+    step_dataset = StepDataset(sample_dataset)
+    device = torch.device(config['device'])
 
-	optimizer = Adam(simulator.parameters())
-	loader = DataLoader(step_dataset, batch_size=config['batch_size'], shuffle=True)
-	loss_function = DEMLoss()
+    generator = GraphGenerator(cutoff_distance=config['cutoff_distance_prefactor'] * sample_dataset.max_particle_radius)
+    model = GNNModel(device=device)
+    wandb.watch(model) #This enables log pytorch gradients
+    model.to(device)
+    simulator = Simulator(model=model, graph_generator=generator, device=device)
 
-	losses = train(simulator, optimizer, loader, loss_function, device)
-	wandb.log({"losses": losses})
+    optimizer = Adam(simulator.parameters())
+    loader = DataLoader(step_dataset, batch_size=config['batch_size'], shuffle=True)
+    loss_function = DEMLoss()
+
+    losses = train(simulator, optimizer, loader, loss_function, device)
+    wandb.log({"losses": losses})
