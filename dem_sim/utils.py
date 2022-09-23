@@ -1,7 +1,7 @@
 from typing import List
 import torch
 
-def periodic_difference(x_i: torch.tensor, x_j: torch.tensor, domain: torch.tensor) -> torch.tensor:
+def periodic_difference(x_i: torch.Tensor, x_j: torch.Tensor, domain: torch.Tensor) -> torch.Tensor:
     """
     Compute x_i - x_j taking into account the periodic boundary conditions.
     """
@@ -14,13 +14,13 @@ def periodic_difference(x_i: torch.tensor, x_j: torch.tensor, domain: torch.tens
     periodic_diff = use_original * diff + ~use_original * diff_shifted
     return periodic_diff
 
-def find_missing(A: torch.tensor, B: torch.tensor) -> List[tuple]:
+def find_missing(A: torch.Tensor, B: torch.Tensor) -> List[tuple]:
     """
     Return edges from edge list A that are missing in edge list B.
 
     Args:
-        A (torch.tensor): edge list, shape [2, E].
-        B (torch.tensor): edge list, shape [2, E'].
+        A (torch.Tensor): edge list, shape [2, E].
+        B (torch.Tensor): edge list, shape [2, E'].
 
     Returns:
         list of tuples

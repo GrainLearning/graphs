@@ -133,7 +133,7 @@ class MSELossPeriodic(MSELoss):
     def __init__(self):
         super().__init__()
 
-    def forward(self, inputs: torch.tensor, target: torch.tensor, domain: torch.tensor):
+    def forward(self, inputs: torch.Tensor, target: torch.Tensor, domain: torch.Tensor):
         error = periodic_difference(inputs, target, domain)
         se = error ** 2
         mse = torch.mean(se)

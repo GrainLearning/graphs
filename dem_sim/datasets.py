@@ -64,7 +64,7 @@ class SampleDataset(Dataset):
         return GraphData(**{key: get_tensor(sample[key]) for key in GraphData._fields})
 
 
-def get_tensor(data) -> torch.tensor:
+def get_tensor(data) -> torch.Tensor:
     """Convert data inside an hdf5 file to a torch tensor."""
     return torch.tensor(data[()])
 

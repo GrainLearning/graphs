@@ -45,8 +45,8 @@ class GraphGenerator():
     def evolve(self,
             current_graph: Graph,
             prediction: Prediction,
-            t_next: torch.tensor,
-            domain_next: torch.tensor
+            t_next: torch.Tensor,
+            domain_next: torch.Tensor
             ) -> Graph:
         """
         Evolve graph to the next timestep using prediction and new inputs.
@@ -54,8 +54,8 @@ class GraphGenerator():
         Args:
             current_graph (Graph):
             prediction (Prediction):
-            t_next (torch.tensor):
-            domain_next (torch.tensor):
+            t_next (torch.Tensor):
+            domain_next (torch.Tensor):
 
         Returns:
             Graph
@@ -76,7 +76,7 @@ class GraphGenerator():
             )
         return new_graph
 
-    def _compute_edges(self, positions: torch.tensor, domain: torch.tensor) -> torch.tensor:
+    def _compute_edges(self, positions: torch.Tensor, domain: torch.Tensor) -> torch.Tensor:
         """
         Compute the radius graph, taking into account periodic boundary conditions.
 
@@ -84,11 +84,11 @@ class GraphGenerator():
         to the positions shifted and transformed back onto the domain.
 
         Args:
-            positions (torch.tensor, shape [N, 3]): particle positions
-            domain (torch.tensor, shape [3]): domain size.
+            positions (torch.Tensor, shape [N, 3]): particle positions
+            domain (torch.Tensor, shape [3]): domain size.
 
         Returns:
-            torch.tensor, shape [2, E]: edge list
+            torch.Tensor, shape [2, E]: edge list
         """
         edge_index = radius_graph(positions, self.cutoff_distance, loop=self.loop)
 
