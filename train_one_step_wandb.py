@@ -18,18 +18,19 @@ if __name__ == '__main__':
     #----------- wandb configuration
     config = dict (
       batch_size = 1,
-      epochs = 2,
+      epochs = 10,
       cutoff_distance_prefactor = 2.,
       architecture = "CNN",
       dataset_id = "path_sampling_5000",
-      infrastructure = "MacOS Luisa",
-      device = "cpu"
+      infrastructure = "crib utwente",
+      device = "cuda"
     )
 
     wandb.init(project = "GrainLearning_GNN_1",
         entity = "grainlearning-escience",
         notes = "testing time performance",
         tags = ["baseline", "paper1"],
+        resume = True, # True: resume the run next time (must be in the same machine)
         config = config)
 
     #---------- Simulator configuration
@@ -81,7 +82,7 @@ if __name__ == '__main__':
         start_step = checkpoint['step']
         print(f"Previously trained for {start_epoch} epochs, and {start_step} steps ...")
         previous_loss = checkpoint['total_loss_epoch']
-
+    
     #---------- Training
     losses = train(simulator, optimizer, loader, loss_function, metric, device,
                    epochs = config['epochs'],
