@@ -164,7 +164,8 @@ def main(pressure, experiment_type,numParticles):
         f_sample_meta = f_sample.create_group('metadata')
         for m,key in enumerate(sampling_keys): f_sample_meta[key] = (state_sampling+path_sampling)[m]
         f_sample_meta['num_steps'] = len(steps)
-        f_sample_meta['radius'] = np.array([float(eval('b.'+const_body_key)) for b in O.bodies for const_body_key in particle_keys.values()]).reshape([int(numParticles),1])
+        radius = np.array([float(eval('b.'+const_body_key)) for b in O.bodies for const_body_key in particle_keys.values()]).reshape([int(numParticles),1])
+        f_sample_meta['radius'] = radius.astype('float32')
         # store the time sequence of each sample
         f_sample_time = f_sample.create_group('time_sequence')
         # loop over time
