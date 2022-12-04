@@ -24,13 +24,13 @@ def train(
     simulator.train()
     simulator.to(device)
     losses = []
-    if start_step > 0: loader = islice(loader, start_step, None)
 
     for epoch in range(start_epoch, epochs):
-        for i, (graph_data, step) in enumerate(loader, start = start_step):
+        if start_step > 0: loader_partial = islice(loader, start_step, None)
+        else: loader_partial = loader
+        for i, (graph_data, step) in enumerate(loader_partial, start = start_step):
             graph_data, step = _unbatch(graph_data, step)
-            graph_data = graph_data.copy_to(device) #check if it is necessary after pin_memory=True in DataLoader definition
-
+            graph_data = graph_data.copy_to(device)
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
             metric.add(prediction, graph_data, step)
@@ -38,7 +38,7 @@ def train(
             total_loss += loss.item()
             optimizer.step()
 
-            if i>start_step and i%10 == 0: #Save model checkpoint
+            if i>start_step and i%10000 == 0: #Save model checkpoint
                 wandb.log({"loss": loss}, step = i)
                 torch.save({
                 'epoch': epoch,
@@ -57,7 +57,7 @@ def train(
         print(metric)
 
         wandb.log({"loss_epoch": total_loss, "epoch": epoch})
-        wandb.log(metric.dict.update({"epoch" : epoch}))
+        wandb.log(metric.dict, step = epoch)
         start_step = 0 # Reseting variables
         metric.reset()
         total_loss = 0
@@ -187,7 +187,8 @@ class VectorMetrics(nn.Module):
         output = "Mean vector norm differences: "
         for attribute in ['positions', 'velocities', 'angular_velocities', 'stress']:
             tabs = "".join(["\t" for _ in range((40 - len(attribute)) // 8)])
-            mean = getattr(self, attribute) / self.count
+            if self.count == 0: mean = 0
+            else: mean = getattr(self, attribute) / self.count
             output += f"\n{attribute}:" + tabs + f"{mean:.4E}"
         return output
 
