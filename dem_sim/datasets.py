@@ -1,4 +1,3 @@
-import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -34,14 +33,14 @@ class SampleDataset(Dataset):
     """
     Sample level dataset.
     """
-    def __init__(self, path, num_samples=None, max_steps=None):
+    def __init__(self, hdf5_file, num_samples=None, max_steps=None):
         super().__init__()
-        self.file = h5py.File(path, 'r')
+        self.file = hdf5_file
 
         self.max_particle_radius = self.file['metadata/radius_max'][()]
         self.sample_keys = [key for key in self.file.keys() if key[0].isnumeric()]
         if num_samples:
-            self.sample_keys = self.sample_keys[:num_samples]
+            self.sample_keys = self.sample_keys[num_samples[0]:num_samples[1]]
         # only count steps with a label (so with a next step)
         self.step_counts = [int(self.file[sample_key]['num_steps'][()]) - 1
                                 for sample_key in self.sample_keys]
