@@ -21,7 +21,9 @@ if __name__ == '__main__':
       epochs = 100,
       cutoff_distance_prefactor = 2.,
       learning_rate = 1e-6,
-      architecture = "CNN",
+      num_hidden_layers = 12,
+      hidden_features = 128,
+      architecture = "Linear",
       dataset_id = "path_sampling_5000",
       infrastructure = "crib utwente",
       device = "cuda"
@@ -58,17 +60,18 @@ if __name__ == '__main__':
     step_dataset_val = StepDataset(sample_dataset_val)
     
     g = torch.Generator().manual_seed(0)
-    loader_train = DataLoader(step_dataset_train, batch_size = config['batch_size'],
-                        pin_memory = True, generator = g)
+    loader_train = DataLoader(step_dataset_train, batch_size=config['batch_size'],
+                        pin_memory=True, generator=g)
     loader_val = DataLoader(step_dataset_val, batch_size = config['batch_size'],
-                        pin_memory = True, generator = g)
+                        pin_memory=True, generator=g)
 
     #---------- Model creation
-    generator = GraphGenerator(cutoff_distance = config['cutoff_distance_prefactor'] * sample_dataset_train.max_particle_radius)
-    model = GNNModel(device = device)
+    generator = GraphGenerator(cutoff_distance=config['cutoff_distance_prefactor'] * sample_dataset_train.max_particle_radius)
+    model = GNNModel(device=device, num_hidden_layers = config['num_hidden_layers'],
+                    hidden_features=config['hidden_features'])
     wandb.watch(model) #This enables log pytorch gradients
     model.to(device)
-    simulator = Simulator(model = model, graph_generator = generator)
+    simulator = Simulator(model=model, graph_generator=generator)
     simulator.to(device)
 
     #---------- Optimizer and loss function initialization
@@ -95,10 +98,10 @@ if __name__ == '__main__':
     
     #---------- Training
     losses = train(simulator, optimizer, loader_train, loss_function, metric, device,
-                   epochs = config['epochs'],
-                   start_epoch = start_epoch,
-                   start_step = start_step,
-                   total_loss = previous_loss)
+                   epochs=config['epochs'],
+                   start_epoch=start_epoch,
+                   start_step=start_step,
+                   total_loss=previous_loss)
     
     #---------- Rollout
     """
