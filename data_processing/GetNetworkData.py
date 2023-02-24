@@ -77,6 +77,7 @@ def main(pressure, experiment_type, numParticles):
         f_sample['radius'] = np.array(radius, dtype=np.float32).reshape([int(numParticles),1])
 
         domains, stresses, node_features, time = ([] for i in range(4))
+
         for i,step in enumerate(steps[:2]):
             # load YADE at a given time step
             try:
