@@ -2,87 +2,47 @@
 
 ## What is this for?
 `GetNetworkData.py` collects the data from yade simulation and stores it in in an hdf5 file.
+Such file can be read in python using the package h5py as follows: 
 
-## Data stored
+```python
+import h5py
+dataset = h5py.File(path_to_file, 'r')
+```
 
+## Data format
 When importing the generated hdf5 file to python you will get a dictionary with the following keys:
-* `contact_params` : array of size 5 containing Young modulus $E$, poisson ratio $\nu$, friction angle $\mu$ in degrees
-* ints between 1 and 200: The key name is the index of the sample ID. Within each sample ID group, you find the saved states 1 to 200. Each state contains the following dictionaries with keys:
-1. `sources` : list of size (number_edges,) with the indices of the source node of each edge.
-2. `destinations` : list of size (number_edges,) with the indices of the destination node of each edge.
-3. `node_features`: array of particle properties and states at a given state
-4. `macro_input_features`: List of input macroscopic variables (e.g., stress or strains).
-5. `macro_output_features`: List of output macroscopic variables (e.g., strain or stress). Note that for the initial step, all macro-variables are input.
-6. `other_features`: list of numerical variables
 
-Look [here](https://distill.pub/2021/gnn-intro/) for more information about adjacency matrix. 
+* **metadata**: Data that is common for all simulations in the dataset:
+    * *contact_params*: array containing Young modulus $E$, poisson ratio $\nu$, friction angle $\mu$ in degrees and particle density.
+    * *num_nodes*: Number of particles
+    * *radius_max*: Maximum radius of the spherical particles.
+    * *radius_min*: Minimum radius
 
-Table 1.1. Macroscopic input parameter:
-|index |macro_input_featuresr|	
-|:----:|:-------|
-|[0]| domain size in z direction $ l_z$ |
-|[1]| stress in x direction $\sigma_x$ |
-|[2]| stress in y direction $\sigma_y$ |
+* **SampleID_LoadPath**: inside each one of these groups:
+    * *radius*: List of the particle radii `[num_nodes]`
+    * *sample_properties*: List of: Pressure $P$, compressive strain rate $\dot{\varepsilon_p}$, shear strain rate $\dot{\varepsilon_q}$ and initial friction $\mu_0$ `[4]`
+    * *num_steps*: Number of time steps in the simulation `[int]`
+    * *domain*: Domain size in x,y,z `[num_steps, 3]`
+    * *stress*: Sample stress in x,y,z `[num_steps, 3]`
+    * *velocities*: Particle velocity x,y,z `[num_steps, num_nodes, 3]`
+    * *positions*: Particle positions x,y,z `[num_steps, num_nodes, 3]`
+    * *time*: Physical time at each step `[num_steps]`
 
-Table 1.2. Macroscopic input parameter:
-|index |macro_input_featuresr|	
-|:----:|:-------|
-|[0]| domain size in x direction $ l_x$ |
-|[1]| domain size in y direction $ l_y$ |
-|[2]| stress in z direction $\sigma_z$ |
-
-4. `node_features` : Particle features
-
-Table 2. Node parameters:
-|index |Node parameter|
-|:----:|:-------|
-|[0] | ID    |
-|[1] | radius|
-|[2] | mass  |
-|[3] | position x coordinate|
-|[4] | position y coordinate|
-|[5] | position z coordinate|
-|[6] | velocity x component|
-|[7] | velocity y component|
-|[8] | velocity z component|
-|[9] | angular velocity 1 in YADE | 
-|[10] | angular velocity 2 in YADE | 
-|[11] | angular velocity 3 in YADE | 
-|[12] | x coordinate at t=0, with respect to the origin|
-|[13] | y coordinate at t=0, with respect to the origin|
-|[14] | z coordinate at t=0, with respect to the origin|
-
-5. `edge_features` : Contact features
-
-Table 3. Edge parameters:
-|index|Edge parameter|
-| ----|-------|
-|[0] |radius particle 1 |
-|[1] |radius particle 2|
-|[2] |tangential stiffness ks |
-|[3] |normal stiffness kn |
-|[4] |overlapping depth between spheres|
-|[5] |shear increment x between particles|
-|[6] |shear increment y between particles|
-|[7] |shear increment z between particles|
-|[8] |contact normal vector x component (can get rid of and just keep normal force)|
-|[9] |contact normal vector y component|
-|[10] |contact normal vectorz component|
-|[11] |contactPoint x coordinate in the cross section of the overlap|
-|[12] |contactPoint y coordinate|
-|[13] |contactPoint z coordinate|
-|[14]| elastic component of the shear displacement x|
-|[15]| elastic component of the shear displacement y|
-|[16]| elastic component of the shear displacement z|
-|[17]| total shear displacement x|
-|[18]| total shear displacement y|
-|[19]| total shear displacement z|
-|[20]| shear force x|
-|[21]| shear force y|
-|[22]| shear force z|
-|[23]| normal force x|
-|[24]| normal force y|
-|[25]| normal force z|
+Labels of the fields can be found the attribute `attrs` of the hdf5 file:
+```python
+dataset.attrs.keys()
+<KeysViewHDF5 ['contact_keys', 'edge_features', 'macro_input_features', 'macro_output_features', 'node_features', 'radius', 'sample_properties', 'sampling_variables', 'time']>
+```
 
 ## How to run it
-To run `GetNetworkData.py` you must have [yade](https://yade-dem.org/doc/installation.html) installed and then simply run `yade GetNetworkData.py`.
+To run `GetNetworkData.py` you must have [yade](https://yade-dem.org/doc/installation.html) installed and then in a command line run:
+```bash
+yade GetNetworkData.py
+```
+
+## How to contribute
+If you have DEM simulation data from another software package, you can write your own parser (i.g. equivalet to GetNetworkData.py) that produces an hdf5 file having the **same format**. 
+1. Create an issue explaining to the community what you are working on.
+2. Create a branch or fork the repository.
+3. Test your code locally.
+4. Once you're ready create a pull request, the maintainers of the code will evaluate if your contribution can be directly merged or requires changes.  
