@@ -1,5 +1,5 @@
 import torch
-from torch import nn, autograd
+from torch import nn
 from torch.nn import MSELoss
 
 from dem_sim.utils import periodic_difference
@@ -25,6 +25,14 @@ def train(
     simulator.to(device)
     losses = []
 
+    # profiler
+    prof = torch.profiler.profile(
+        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler('./outputs/profile1'),
+        record_shapes=True,
+        with_stack=True)
+    prof.start()
+
     for epoch in range(start_epoch, epochs):
         if start_step > 0: loader_partial = islice(loader_train, start_step, None)
         else: loader_partial = loader_train
@@ -39,6 +47,8 @@ def train(
             loss.backward()
             total_loss += loss.item()
             optimizer.step()
+            prof.step() # profiler
+
             if i>start_step and i%10000 == 0: #Save model checkpoint
                 wandb.log({"loss": loss})
                 save_model('outputs/model.pth', epoch, i, simulator, optimizer, metric, total_loss)
@@ -59,6 +69,7 @@ def train(
         metric.reset()
         total_loss = 0.0
 
+    prof.stop()
     return losses
 
 
