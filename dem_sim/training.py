@@ -1,17 +1,18 @@
 import torch
 from torch import nn, autograd
 from torch.nn import MSELoss
+from itertools import islice
+import wandb
 
 from dem_sim.utils import periodic_difference
 from dem_sim.data_types import Prediction, GraphData
 
-from itertools import islice
-import wandb
 
 def train(
         simulator,
         optimizer,
         loader_train,
+        loader_val,
         loss_function,
         metric,
         device,
@@ -24,17 +25,25 @@ def train(
     simulator.train()
     simulator.to(device)
     losses = []
+    metric_val = VectorMetrics()
+    loss_val = 0.0
+    best_loss_val = 1.0e6
 
     for epoch in range(start_epoch, epochs):
-        if start_step > 0: loader_partial = islice(loader_train, start_step, None)
-        else: loader_partial = loader_train
+        if start_step > 0:
+            loader_partial = islice(loader_train, start_step, None)
+            loader_partial_val = islice(loader_val, start_step, None)
+        else:
+            loader_partial = loader_train
+            loader_partial_val = loader_val
+            
+        # Training
+        i = 0
         for i, (graph_data, step) in enumerate(loader_partial, start = start_step):
             graph_data, step = _unbatch(graph_data, step)
             graph_data = graph_data.copy_to(device)
             prediction = simulator(graph_data, step)
             loss = loss_function(prediction, graph_data, step)
-            if loss > 1e16 or loss < -1e16 or loss != loss: 
-                print(f"Weird loss {loss} at step loader {i}, and step {step}")
             metric.add(prediction, graph_data, step)
             loss.backward()
             total_loss += loss.item()
@@ -43,24 +52,41 @@ def train(
                 wandb.log({"loss": loss})
                 save_model('outputs/model.pth', epoch, i, simulator, optimizer, metric, total_loss)
                 print(f"Saved checkpoint at epoch {epoch}, step {i} to outputs/model.pth")
-            
+        
+        print('Validation')
+        # Validation
+        i_val = 0
+        for i_val, (graph_data_val, step_val) in enumerate(loader_partial_val):
+            graph_data_val, step_val = _unbatch(graph_data_val, step_val)
+            graph_data_val = graph_data_val.copy_to(device)
+            prediction_val = simulator(graph_data_val, step_val)
+            loss_val += loss_function(prediction_val, graph_data_val, step_val)
+            metric_val.add(prediction_val, graph_data_val, step_val)
+        
+        # Logging progress
         total_loss = total_loss / (i + 1)
         losses.append(total_loss)
-        print(f"Train Loss after epoch {epoch}: {total_loss:.4E}...")
-        print(metric)
-        wandb.log({"train_loss_epoch": total_loss, "epoch": epoch})
+        loss_val = loss_val / (i_val + 1)
+        print(f" Epoch {epoch} --> Train Loss: {total_loss:.4E}, Validation Loss: {loss_val:.4E}")
+        print(metric); print(metric_val)
+        wandb.log({"train_loss_epoch": total_loss, "val_loss_epoch": loss_val, "epoch": epoch})
         separated_losses = metric.dict
         separated_losses["epoch"] = epoch
-        wandb.log(separated_losses)
+        separated_losses_val = metric_val.dict_val
+        separated_losses_val["epoch"] = epoch
+        wandb.log(separated_losses_val)
+        wandb.log(separated_losses) 
         save_model('outputs/model.pth', epoch, i, simulator, optimizer, metric, total_loss)
+        if loss_val < best_loss_val: save_model('outputs/model_best.pth', epoch, i, simulator, optimizer, metric, total_loss)
         
         # Reseting epoch variables
         start_step = 0 
-        metric.reset()
+        metric.reset();  metric_val.reset()
         total_loss = 0.0
+        loss_val = 0.0
 
     return losses
-
+    
 
 def test(
         simulator,
@@ -152,9 +178,10 @@ class DEMLoss(nn.Module):
         loss_w = self.loss_fn_w(prediction.angular_velocities, graph_data.angular_velocities[step + 1])
         if loss_w > 1e16 or loss_w < -1e16 or loss_w != loss_w: print(f"loss ang vel {loss_w}, prediction has nans: {torch.any(torch.isnan(prediction.angular_velocities))}, graph_data has nans: {torch.any(torch.isnan(graph_data.angular_velocities[step + 1]))}")
         # Note we're predicting the stress at the current step, not the next one
-        loss_stress = self.loss_fn_stress(prediction.stress, graph_data.stress[step])
-        if loss_stress > 1e16 or loss_stress < -1e16 or loss_stress != loss_stress: print(f"loss stress {loss_stress}, prediction has nans: {torch.any(torch.isnan(prediction.stress))}, graph_data has nans: {torch.any(torch.isnan(graph_data.stress[step + 1]))}")
-        return 3 * (self.a * loss_x + self.b * loss_v + self.c * loss_w + self.d * loss_stress)
+        loss_stress = 0
+        #loss_stress = self.loss_fn_stress(prediction.stress, graph_data.stress[step])
+        #if loss_stress > 1e16 or loss_stress < -1e16 or loss_stress != loss_stress: print(f"loss stress {loss_stress}, prediction has nans: {torch.any(torch.isnan(prediction.stress))}, graph_data has nans: {torch.any(torch.isnan(graph_data.stress[step + 1]))}")
+        return (self.a * loss_x + self.b * loss_v + self.c * loss_w + self.d * loss_stress)
 
 class MSELossPeriodic(MSELoss):
     """
@@ -190,7 +217,7 @@ class VectorMetrics(nn.Module):
         self.positions += self._compute_mean_norm(prediction.positions, graph_data.positions[step + 1])
         self.velocities += self._compute_mean_norm(prediction.velocities, graph_data.velocities[step + 1])
         self.angular_velocities += self._compute_mean_norm(prediction.angular_velocities, graph_data.angular_velocities[step + 1])
-        self.stress += self._compute_mean_norm(prediction.stress, graph_data.stress[step])
+        # self.stress += self._compute_mean_norm(prediction.stress, graph_data.stress[step])
         self.count += 1
 
     def load_state_dict(self, state_dict: dict):
@@ -231,4 +258,16 @@ class VectorMetrics(nn.Module):
             mean = 0
             if self.count > 0 : mean = getattr(self, attribute) / self.count
             rms['rms_'+attribute] = mean
+        return rms
+    
+    @property
+    def dict_val(self):
+        """
+        Returns the rms: root mean squared error of each of the attributes.
+        """
+        rms = dict()
+        for attribute in ['positions', 'velocities', 'angular_velocities', 'stress']:
+            mean = 0
+            if self.count > 0 : mean = getattr(self, attribute) / self.count
+            rms['rms_'+attribute+'_val'] = mean
         return rms
