@@ -41,7 +41,7 @@ You can simply run it as `python train_one_step_wandb.py`
 - **GNN Layer**
 
   Graph Neural network layer in charge of performing the message passing process through the graph.
-  - *Message $\phi =$* MLP($h_i - h_j, v_i, v_j, r_i, r_j, x_i - x_j \% domain, \Theta$)
+  - *Message* $\phi =$ MLP($h_i - h_j, v_i, v_j, r_i, r_j, x_i - x_j \% domain, \Theta$)
   considering $i$ as the central node and $j$ all neighbors of $i$:
     - $h_i$ and $h_j$: Hidden features of nodes (particles) $i$ and $j$.
     - $v_i$ and $v_j$: velocity vector of nodes (particles) $i$ and $j$.
